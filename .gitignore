@@ -1,0 +1,34 @@
+# Secrets — never commit these. Verify this file exists BEFORE your first commit.
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+id_rsa*
+credentials*.json
+
+# Local databases (SQLite etc.)
+*.db
+*.sqlite
+*.sqlite3
+
+# Dependencies & build artifacts — uncomment / add what your stack produces
+node_modules/
+dist/
+build/
+.next/
+coverage/
+__pycache__/
+*.pyc
+.venv/
+target/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json

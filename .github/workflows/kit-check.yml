@@ -1,0 +1,14 @@
+# Consistency checks for the PRIMER'S OWN cross-references.
+# The checks live in scripts/kit-check.sh (same file runs locally).
+# Adopters: delete this workflow + scripts/, or adapt if you renamed perp-.
+name: kit-check
+on:
+  push:
+  pull_request:
+
+jobs:
+  consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/kit-check.sh
