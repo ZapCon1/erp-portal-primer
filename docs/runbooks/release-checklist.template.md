@@ -11,6 +11,9 @@
 - [ ] Feature docs current — the Progress table of every `features/<name>.md` this release touched has the shipping commit hash. (`/perp-status` flags stale ones.)
 - [ ] One-sided surface changes justified — anything shipped to only one of internal-app/portal has the gap noted and a follow-up opened (CLAUDE.md § Parity).
 - [ ] Migrations rehearsed — any schema migration in this release was run against a restored copy of production data, not just dev fixtures (ARCHITECTURE.md § migrations).
+- [ ] **`SEC-2` — dev-mode auth is off; both realms use real login, and the startup assertion is still in place.** Grep the auth module: the guard that refuses to boot the stub in production must not have been "temporarily" removed. This block previously had no security line at all, which is how a dev stub reaches production.
+- [ ] **`A11Y-1` — the accessibility scan is wired and green**, and one keyboard-only pass through a portal view. Once any portal view exists, an unwired scan is `⊘ NOT CONFIGURED`, not `N/A` (`docs/CONTROLS.md`).
+- [ ] **`OPS-3` — error tracking and the uptime check still reach a human.** Send one test alert; a monitoring integration that silently expired is indistinguishable from a quiet week.
 
 ## Periodically (check the date, not the box)
 

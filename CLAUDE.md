@@ -25,7 +25,7 @@ delete what doesn't apply.
 
 ### Day 1 — adopting the primer
 
-- [ ] **Run `/perp-scope`** — the guided-start interview fills most of Day 1 conversationally and writes `docs/SCOPE.md`. If unchecked and the user seems new, suggest it before anything else. Then `/perp-build-core`.
+- [ ] **Run `/perp-scope`** — the guided-start interview (~30 min) fills most of Day 1 conversationally and writes `docs/SCOPE.md`. **If `docs/SCOPE.md` does not exist, invoke it as your first action** — don't explain the kit or ask what to work on first; the skill opens with its own welcome. A SessionStart hook in `.claude/settings.json` normally tells you this already; this line is the fallback for when hooks are off, unsupported, or the adopter is using another AI tool. **Already have a scope/spec/requirements doc?** Ask them to point at the file — the skill has an import mode. Then `/perp-build-core`.
 - [ ] Confirm the default stack — **Next.js + TypeScript + Prisma + PostgreSQL** (`docs/STACK.md`) — or record your deviation in **Tech Stack** below per STACK.md § "If you deviate". Not a developer? The default is the answer.
 - [ ] **Decide the three schema-shaped Key Concepts now**: billing model, datetime policy, promised dates (`<TODO>`s under Key Concepts). Changing any later means migrating live financial data.
 - [ ] Fill every `<TODO>` **in this file**. The `<TODO>`s in `.claude/skills/*/SKILL.md` wait until the stack exists in code — `/perp-setup-testing` fills the testing ones; filling commands before a `package.json` exists turns `/perp-check`'s honest "not configured" into misleading failures.
@@ -47,11 +47,13 @@ delete what doesn't apply.
 
 ### Before go-live
 
-- [ ] **Real login replaces the dev-mode stub — both realms.** Hard gate: before anyone but the owner touches the app, always before go-live. Cheap because the wrappers were there from the first route.
-- [ ] **Incident-response runbook** from its template — the first secret leak or failed deploy happens at go-live, not at maturity; § 8's rotation protocol assumes it exists.
-- [ ] **Release checklist** from its template — `/perp-review-parity` is its most important line, recurring before every release forever.
-- [ ] **First portal view shipped?** Fill `/perp-check`'s accessibility-scan step and enable the a11y CI step **in the same PR** (`docs/PORTAL_UX.md`).
-- [ ] **Deploy runbook** from `docs/runbooks/deploy.template.md`; rehearse one rollback.
+**The go-live gates live in `docs/CONTROLS.md` § Go-live gates, not here** —
+this Bootstrap section gets deleted when it's done, and a gate that vanishes
+when a checklist is tidied away was never a gate. Work that list; these two
+lines are only the pointers most often needed early:
+
+- [ ] **Real login replaces the dev-mode stub — both realms** (`SEC-2`). Not a checkbox: an assertion that refuses to boot, plus a `/perp-check` gate. Cheap because the wrappers were there from the first route.
+- [ ] **Runbooks filled** (incident-response, deploy, backup-restore) — the first secret leak or failed deploy happens at go-live, not at maturity.
 
 ### As the project matures
 
@@ -115,10 +117,17 @@ Claude reads `package.json` for the details.
 
 ## Engineering Principles
 
+**Rules have stable IDs** — `TENANT-1`, `SEC-2`, `MONEY-1`, `PARITY-1`,
+`AUDIT-1`, `STRUCT-1`, `SCALE-1`, `A11Y-1`, `OPS-1` — so a review, a check
+failure, or a plan can cite one and you can resolve it without re-reading the
+file. `docs/CONTROLS.md` maps each to whatever actually enforces it, and says
+plainly which ones nothing enforces yet.
+
 ### Feature Planning
 - **Every feature names the friction it removes** — internal or external, per SCOPE.md § The friction. Can't name it? Scope creep.
 - Every non-trivial feature gets a `features/<name>.md` doc via **`/perp-feature <name>`** (scaffolds + registers in the index) — the moment you commit to building, before code.
 - Check existing `features/*.md` for overlap first; extend rather than duplicate.
+- **Bigger than a feature? It's a module** — `docs/MODULES.md` has the boundary map, the dependency graph, and the 10-point module contract every capability module answers before code. Modules are **inert by default**: catalogued ≠ planned. Nothing on that list is a dimension — the portal and the compliance posture cut across all of them.
 - Each phase = one commit referenced by hash in the Progress table.
 
 ### Code Structure
@@ -131,7 +140,7 @@ Claude reads `package.json` for the details.
 ### Money & Hours Are Sacred
 The numbers are the product. Canonical rules: DOMAIN_MODEL § Invariants.
 - **One source of truth per number** — one helper, used everywhere (see **Parity**).
-- **Integer minor units** (cents) or decimal type — never floats.
+- **MONEY-1: integer minor units** (cents) in an integer column — never floats, and never a decimal type for stored amounts (JS has no decimal; STACK.md § Pinned conventions is canonical). `Decimal` is for fractional *rates*, not for money you store.
 - **Only approved + billable inputs count toward billed totals** — one documented predicate, applied identically everywhere.
 - **One hour-rounding rule** — at entry or at invoice, never both (DOMAIN_MODEL § TimeEntry).
 - **A stored/cached rollup is a second source of truth** — allowed only under invariant 11.
@@ -156,6 +165,7 @@ perp-setup-testing); this is a summary — the skill wins conflicts. -->
 
 - Commit early and often — every meaningful change is a rollback point.
 - **Commit and push are separate steps.** `/perp-commit` never pushes; `/perp-push` is the explicit publish (confirms before `main`). Solo repo on `main`? Record it here in one line — `/perp-push` treats that as standing confirmation.
+- **This is a solo repo on `main`** — that is standing confirmation for `/perp-push`; push without asking. `origin` is the public `ZapCon1/erp-portal-primer`, so every push is a publish.
 - **No AI attribution in commit messages.** No `Co-Authored-By` naming a model/tool, no "Generated with", no 🤖 — strip tool defaults.
 - **Pre-push hook mirrors the CI fast gate** (type check + unit suite). `core.hooksPath` is per-clone config — the `"prepare"` script re-activates it; `/perp-setup-testing` wires both. `--no-verify` is for genuine emergencies only.
 
@@ -196,7 +206,10 @@ Week 1. <TODO: once created, list its sections here.>
 **Document precedence.** Canonical homes: domain rules →
 `docs/DOMAIN_MODEL.md` § Invariants; security/HTTP semantics →
 `secure_coding.md`; process/git rules → the owning skill in
-`.claude/skills/`; stack pins and library picks → `docs/STACK.md` (this
+`.claude/skills/`; module boundaries, dependencies and activation →
+`docs/MODULES.md`; deployment substrate → `docs/DEPLOYMENT_TARGETS.md`;
+**which controls exist and which of them gate** → `docs/CONTROLS.md`;
+stack pins and library picks → `docs/STACK.md` (this
 file's Tech Stack is a keystone mirror; kit-check compares them). All
 other statements are restatements: **conflicts resolve to the canonical
 home; fix the drifted copy in the same commit.** Once application code
@@ -205,7 +218,7 @@ commit.
 
 ## Dev Server
 
-<TODO: One-liner — run locally, default port, type-check command.>
+<TODO: One-liner — run locally, default port, type-check command. **`/perp-build-core` fills this** when it scaffolds the app; if it's still blank after a build, that's a bug worth reporting, not something for you to guess.>
 
 ## Testing
 
@@ -225,10 +238,17 @@ commit.
 
 ## Key Concepts
 
+**Unfamiliar term anywhere in these docs?** `docs/GLOSSARY.md` defines them
+in plain language — including the words you hit in the first five minutes
+(repo, commit, schema, `<TODO>`) and the regulatory acronyms Phase 3 of
+`/perp-scope` asks about. This pointer lives here, not only in the Bootstrap
+block, because that block gets deleted.
+
+
 <!-- Fill as they settle; defaults from the reference implementation.
 Full model: docs/DOMAIN_MODEL.md. -->
 
-- **Tenant = Client.** Every portal query filters by `clientId`. No ORM-level safety net — discipline enforced by the auth wrapper and `/perp-review-parity`.
+- **Tenant = Client** (`TENANT-1`). Every portal query filters by `clientId`. **Turn on a mechanism that fails closed** — Postgres row-level security, or a Prisma client extension requiring a tenant argument on scoped models. The auth wrapper, the isolation tests and `/perp-review-parity` are the layers *on top of* it, not a substitute (`docs/CONTROLS.md`).
 - **Client codes**: short identifiers (e.g. 3 letters). **Project codes**: `{ClientCode}{YY}{##}` (e.g. `ABC2601`). <TODO: confirm or change.>
 - **Project structure**: Project → Phases → Tasks → Time Entries/Expenses. <TODO: phase `type` rule (e.g. off-site vs on-site), if used.>
 - **Presale → active**: estimate acceptance is the pivotal event that fans out (budget, first invoice, …) atomically.
@@ -242,8 +262,8 @@ Full model: docs/DOMAIN_MODEL.md. -->
 
 - **`secure_coding.md` is MUST for all API route work.** Anchors: new route → § 1 + § 3; webhooks → § 16; files → § 17; sessions/cookies → § 8–10; magic links → § 13; audit → § 7.
 - **Auth pattern**: <TODO: name your canonical wrappers (e.g. `withPermission` staff / `withPortalAuth` customer) and the anti-pattern to avoid.>
-- **Tenant isolation**: every portal query filters by `clientId` — a portal query without a tenant filter is a security bug.
-- **Dev-mode auth stub** (Phase One only): no login UI is fine while the owner is the only user — but ONLY behind real wrappers on every route, tenant-scoped stub POC, permanent "DEV MODE" banner, never deployed. Real login is a before-go-live gate (DOMAIN_MODEL § What to build first).
+- **Tenant isolation** (`TENANT-1`): every portal query filters by `clientId` — a portal query without a tenant filter is a security bug. Enforce it below the query site (RLS or a client extension); discipline alone is not the control (`docs/CONTROLS.md` § Rules with no sensor yet).
+- **Dev-mode auth stub** (`SEC-2`, Phase One only): no login UI is fine while the owner is the only user — but ONLY behind real wrappers on every route, tenant-scoped stub POC, permanent "DEV MODE" banner. **It must be unable to run in production, not merely intended not to**: the auth module asserts on startup and refuses to boot if the stub is active outside development, and `/perp-check` gates on it. A checklist line is not a control.
 - **Two auth realms** (staff vs customer) are separate session systems — one never accepts the other's token.
 - **Error semantics**: cross-tenant access returns **404, not 403**.
 - **Sensitive responses**: never expose password hashes, reset tokens, internal-only fields (`secure_coding.md` § "Sensitive fields in responses").
@@ -252,6 +272,7 @@ Full model: docs/DOMAIN_MODEL.md. -->
 
 ## Production
 
-- **Hosting**: <TODO: where it runs>
+- **Hosting**: <TODO: where it runs — `docs/DEPLOYMENT_TARGETS.md` has the substrate matrix and the decision ladder. Default answer is the VPS; **CUI/ITAR is the one thing that overrides it** (GovCloud / Azure Government / on-prem), and that's an assessor conversation to have early.>
 - **Deploy**: <TODO: steps, or pointer to `docs/runbooks/deploy.md`>
+- **Deploy shape is pinned, the vendor isn't**: web + worker + Postgres, one image, **exactly one process runs migrations**, and the worker is never the web service scaled to N. Managed containers (Fargate, Container Apps) honor the never-serverless pin; Lambda/Vercel don't.
 - **Backups**: automated, tested, off-site — scheduled before go-live, restore rehearsed. <TODO: link your backup runbook.>

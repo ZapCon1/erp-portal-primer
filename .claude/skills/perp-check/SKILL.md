@@ -1,68 +1,139 @@
 ---
 name: perp-check
-description: Run the full verification suite (audit, codegen, types, tests, build, a11y) and report every step
+description: Run every verification sensor and report honestly — split into gates (a failure blocks the push) and drift signals (a number to watch). Reports pass, fail, and every skip with its reason. Use for "check", "verify", "is everything passing", or after any significant change.
 ---
 
 # Check
 
-Run the full verification suite and report results. Do all steps in order
-and report the outcome of each — do not stop at the first failure.
+Run every **sensor** in `docs/CONTROLS.md` and report the results honestly:
+what passed, what failed, and what was skipped **and why**.
 
-**Step 0 — configuration guard (per step, not all-or-nothing).** For each
-step below that still contains a `<TODO>` placeholder:
+Report in two groups, never one flat list. `docs/CONTROLS.md` says which is
+which, and the split is not cosmetic: it tells the user which lines are
+**gates** (a failure blocks a push or a release) and which are **drift
+signals** (a number worth watching whose single readings mean little). A
+complexity warning and a failing test in the same undifferentiated list
+invite treating them the same way, and they are not the same thing.
 
-- **Unannotated step**: report it as `⊘ NOT CONFIGURED — fill the <TODO>
-  in .claude/skills/perp-check/SKILL.md`. Do NOT improvise or guess a
-  command, and do NOT report success for it.
-- **Step annotated** *(skip if N/A)* or *(once X exists)* whose
-  precondition doesn't hold yet (no codegen in this stack, no portal UI
-  shipped): report `⊘ N/A at this stage` and move on — an unfilled
-  annotated step does not block the rest of the suite.
-- **Run every step that IS configured**, regardless of unfilled ones —
-  EXCEPT: a **filled** step whose precondition is absent (no
-  `package.json` yet for the npm steps, no `prisma/schema.prisma` for
-  codegen, no portal UI for the a11y scan) also reports
-  `⊘ N/A at this stage — <missing precondition>` instead of running
-  and failing. A pre-code repo with eagerly filled commands must not
-  report five failures that look identical to a broken project.
+**A silent skip is worse than a failure.** A skipped line that isn't printed
+looks exactly like a clean run, so the user believes it passed. Every skip
+gets a line and a reason.
 
-Only if NO steps are configured at all: stop and report loudly —
-"**Verification is NOT configured — nothing was checked.**" Then inspect
-the repo (package.json / Makefile / project README) to propose concrete
-commands and offer to fill them in.
+## 1. Find the commands — detect, don't guess
 
-**No silent skips.** A configured step whose tool turns out not to be
-installed (e.g. `pip-audit` missing) is reported as
-`⊘ SKIPPED — <tool> not installed (install: <command>)`, never quietly
-passed over — a silent skip looks identical to a clean run, so the user
-would believe the check passed. If the skipped step is the test suite
-because no framework is configured at all, point at `/perp-setup-testing`.
+Read the repo before running anything:
 
-<!--
-Adapt the command list below to this project's stack. The shape ("audit →
-codegen → types → tests → build", each step run regardless of prior
-failures, one consolidated summary) is what matters — codegen runs BEFORE
-the type check because generated types must exist before the type check
-reads them. The exact commands are project-specific; copy them from
-package.json scripts, Makefile, or the project README. Use the same
-type-check command here, in CI, and in the pre-push hook (one
-`typecheck` script) so the three gates can't disagree.
--->
+- `package.json` `scripts` — the default stack. Prefer what's actually
+  defined (`typecheck`, `test`, `test:ci`, `build`) over any command
+  written below.
+- `.github/workflows/*.yml` — **in an existing repo this is the best source
+  of truth** for what the project really runs on every push. If CI runs
+  `test:ci` and not `test`, run `test:ci`.
+- `Makefile`, `pyproject.toml`, `Cargo.toml`, `go.mod` for other stacks.
 
-1. **Dependency audit**: <TODO: default stack: `npm audit --omit=dev --audit-level=high` (alt: `pip-audit` / `cargo audit`)>. Report any vulnerabilities.
-2. **Codegen** *(skip if N/A)*: <TODO: default stack: `npx prisma generate` — a real step here, the generated client must exist before the type check (alt: `protoc ...`, or N/A)>.
-3. **Type check**: <TODO: default stack: `npm run typecheck` (alt: `mypy .` / `cargo check`)>. Report any type errors.
-4. **Unit tests**: <TODO: default stack: `npm test` (the script /perp-setup-testing writes; alt: `pytest` / `cargo test`)>. Report pass/fail counts.
-5. **Build**: <TODO: default stack: `npm run build` (alt: `python manage.py check --deploy && collectstatic` / `cargo build --release`)>. Report success or failure.
-6. **Accessibility scan** *(once portal/public UI exists — skip before then)*: <TODO: e.g. `npx pa11y-ci` / axe against the portal page templates — see `docs/PORTAL_UX.md`>. Report violations.
+Only if the repo tells you nothing, fall back to the defaults in the table.
+**Never improvise a command that would fail for a reason unrelated to the
+code** — a missing script is a skip with a reason, not a failure.
 
-## Reporting
+**No `package.json`, no source, pre-code repo?** Report
+`⊘ N/A — no application code yet` for the build-dependent lines and stop
+there calmly. A pristine primer must not produce a wall of red that looks
+like a broken project.
 
-After all steps complete, provide a short summary:
+## 2. Run the sensors
 
-- One line per step: pass, fail, `⊘ NOT CONFIGURED`, `⊘ N/A at this stage`, or `⊘ SKIPPED`.
-- If anything failed, show the relevant error output (last ~20 lines usually suffices).
-- If everything configured passed, say so clearly — and list any steps that are still unconfigured so the gaps stay visible.
+Run all of them in order, **even if an earlier one fails** — the user wants
+the full picture, not stop-at-first-failure.
 
-Do not stop at the first failure — run all steps so the user sees the
-full picture.
+### Gates
+
+| # | Sensor | Default-stack command | Notes |
+|---|---|---|---|
+| 1 | Dependency audit | `npm audit --omit=dev --audit-level=high` | `pip-audit` / `cargo audit` elsewhere |
+| 2 | Codegen | `npx prisma generate` | Runs **before** the type check — generated types must exist first |
+| 3 | Type check | `npm run typecheck` | Same command here, in CI, and in the pre-push hook, so the three can't disagree |
+| 4 | Unit tests | `npm test` | Includes the tenant-isolation tests (`TENANT-1`) |
+| 5 | Build | `npm run build` | |
+| 6 | **Dev-auth assertion** (`SEC-2`) | see below | |
+| 7 | Accessibility scan (`A11Y-1`) | `npx pa11y-ci` or axe | **Once any portal view exists** — see the precondition rule below |
+
+**Step 6 — the dev-auth gate.** Grep the production auth path for the
+dev-mode stub and for the assertion that must guard it:
+
+- If an auth stub exists **and** no production guard is present (an assertion
+  that throws or refuses to boot when the stub is active outside
+  development): report `✗ FAIL — dev-auth stub reachable in production`.
+  This is a gate. It does not get downgraded because the app "isn't deployed
+  yet" — the whole failure mode is that the deploy happens later and nobody
+  re-checks.
+- If real login is live on both realms: `✓`.
+- If there is no auth code at all yet: `⊘ N/A — no auth module yet`.
+
+### Drift signals — report, never fail
+
+| Sensor | Command | Why it never gates |
+|---|---|---|
+| Coverage | the project's coverage script | A percentage is satisfied by tests that assert nothing |
+| Complexity / file size | the project's lint, or a line count | A hard threshold is satisfied by splitting one honest function into three dishonest ones |
+
+`docs/CONTROLS.md` § Why some rules must never gate has the reasoning.
+**Never promote a drift signal to a gate on your own initiative**, and never
+report one as a failure.
+
+## 3. The precondition rule (read this before reporting any skip)
+
+Three cases, and the third is the one that used to be missed:
+
+1. **No command available and none derivable** → `⊘ NOT CONFIGURED — <what
+   would fix it>`. Never improvise, never report success.
+2. **Command available, precondition genuinely absent** (no portal UI yet for
+   the a11y scan, no `prisma/schema.prisma` for codegen, no `package.json`
+   for the npm steps) → `⊘ N/A at this stage — <missing precondition>`.
+3. **Precondition now HOLDS and the sensor still isn't wired** — a portal
+   view exists but no a11y scan is configured; auth code exists but no
+   dev-auth assertion; `clientId` tables exist but no isolation test →
+   **`⊘ NOT CONFIGURED` and treat it as a finding.** It is *not* `N/A`.
+   The precondition firing is precisely what makes the gap real, and this is
+   the case where a quiet `N/A` would let a portal ship unscanned forever.
+
+**Tool present but not installed** (`pa11y-ci` missing, `pip-audit` missing)
+→ `⊘ SKIPPED — <tool> not installed (install: <command>)`, and treat it as a
+finding, not a clean line.
+
+**No test framework at all** → `✗ NO TEST FRAMEWORK CONFIGURED`, not a skip,
+and offer `/perp-setup-testing`.
+
+**A rule with nothing enforcing it is a finding.** If `docs/CONTROLS.md`
+§ "Rules with no sensor yet" lists something whose precondition now holds —
+most importantly `TENANT-1` once portal routes exist — say so once in the
+summary. Offer the fix; don't nag every run.
+
+## 4. Report
+
+```
+Gates — a failure here blocks the push
+  ✓ audit       npm audit — 0 vulnerabilities
+  ✓ codegen     prisma generate — client written
+  ✗ types       tsc — 2 errors (src/lib/invoice.ts:41, :77)
+  ✗ tests       3 failed of 47 (src/portal/invoices.test.ts:22)
+  ✓ build       next build — ok
+  ✗ dev-auth    stub reachable in production — no startup assertion (SEC-2)
+  ⊘ a11y        NOT CONFIGURED — portal views exist, no scan wired (A11Y-1)
+
+Drift signals — watch the trend, don't gate on the number
+  ! complexity  3 files over 500 lines (was 1 last run)
+  ✓ coverage    81% statements (was 79%)
+```
+
+Markers: `✓` passed · `✗` failed · `!` over threshold but not a failure
+(drift signals only) · `⊘` skipped or N/A, **always with a reason**.
+
+Every line gets a marker — no omissions. Show error output under the summary
+for anything that failed (last ~20 lines usually suffices). If everything
+configured passed, say so plainly **and list what is still unconfigured**, so
+the gaps stay visible rather than being read as coverage.
+
+If a drift signal is trending, one sentence is the useful form:
+
+> Files over 500 lines went 1 → 3 in three runs, all under `lib/billing/`.
+> Worth a look before it gets harder to change.

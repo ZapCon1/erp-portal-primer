@@ -17,10 +17,46 @@ One). This skill is its executable form. The stack is decided
 
 ## Preconditions
 
+Check these **before writing any file** — a scaffold that dies halfway is
+the worst outcome this skill can produce, and every one of these is knowable
+in advance.
+
 - `docs/SCOPE.md` exists (else: run `/perp-scope` first — say so, one
   line, and offer to).
-- If the repo already has app code, STOP — this skill is for the
-  from-nothing moment; `/perp-feature` drives incremental work.
+- **The toolchain is present**: `node --version` (LTS or newer), `npm`,
+  `git`. For the database, either a reachable Postgres or Docker to run
+  one. **If anything is missing, stop before step 1** and say in plain
+  language which single thing to install and where to get it. The owner
+  is a machinist, not a developer — "npm: command not found" mid-build
+  reads as *the kit is broken*, not *Node isn't installed*.
+- **Postgres is required, not preferred.** Do not fall back to SQLite: the
+  pinned integrity constructs — the locked invoice counter
+  (`SELECT … FOR UPDATE`), the immutability trigger, and pg-boss itself —
+  do not exist there, and Prisma's SQLite connector rejects the `enum`
+  blocks step 2 mandates. A build on SQLite cannot satisfy this skill's
+  own schema step. Offer `docker compose up -d db` instead.
+- **Existing app code?** If the repo has real source beyond this kit, STOP —
+  `/perp-feature` drives incremental work. **Exception: a previous run of
+  this skill that didn't finish.** If the only commits are this skill's own
+  (`build-core: step N`), that is a resumable failure, not a brownfield
+  repo — resume from the first incomplete step rather than refusing.
+
+## If the build fails partway
+
+Commit after each numbered step, message `build-core: step N — <what>`, so
+every step boundary is a restore point.
+
+If a step fails twice, **stop**. Don't loop. Say plainly which step broke and
+what the error was, then offer exactly two options in the owner's language:
+
+> Step 6 of 11 didn't finish — the database rejected the schema. Nothing is
+> lost and nothing is broken. I can either **fix just that piece and carry
+> on**, or **undo everything and start clean** (`git reset --hard <the
+> commit before step 1>`).
+
+Never leave the default branch non-building without saying so. Never end a
+failed run with the success handoff script — the scripted URL line at the end
+of this skill is for a build that actually runs.
 
 ## What to build (one pass, no questions until the end)
 
@@ -44,7 +80,7 @@ scoping decision was already made in the interview; do not re-ask.
 4. **Both dashboards**: staff home with the **pain-point lead tile**
    top-left (from SCOPE.md § First slice) + the universal staples (jobs
    in motion, unapproved time, overdue invoices) as honest empty-state
-   tiles; portal dashboard per `docs/PORTAL_UX.md` § hierarchy.
+   tiles; portal dashboard per `docs/PORTAL_UX.md` § Portal dashboard hierarchy.
    **The lead tile is a doorway, not the destination**: the pain-point
    feature also gets its **own side-nav page** (next step), and the
    tile links to it. A pain point that lives only as a dashboard tile
@@ -93,13 +129,37 @@ scoping decision was already made in the interview; do not re-ask.
    - A realm switcher (staff view ⇄ "view as your customer") so the
      owner can feel the portal — this is the parity rule made tangible
      on day one.
+   - **The stub must be unable to run in production** (`SEC-2`). Write
+     the assertion in the auth module *in this pass*, not later:
+
+     ```ts
+     if (process.env.NODE_ENV === 'production' && AUTH_MODE === 'dev') {
+       throw new Error('dev auth stub is active in production — refusing to start')
+     }
+     ```
+
+     Refuse to boot; never degrade to "log a warning". This is the one
+     line that turns a go-live checkbox into a control, and it costs
+     nothing today. `/perp-check` gates on its presence.
    - What is NEVER acceptable, dev mode or not: a route without a
      wrapper, a portal query without a tenant filter, secrets in
      client bundles. Real login (both realms) is a **hard gate before
      anyone but the owner touches the app, and always before go-live**
-     (Bootstrap checklist § Before go-live).
+     (`docs/CONTROLS.md` § Go-live gates).
+   - **The realm switcher is dev-mode only** — it disappears with the
+     DEV MODE banner. If it ever graduates into a real support feature,
+     it needs a permission, a persistent banner naming the client being
+     viewed, and an audit entry recording the real actor and the
+     assumed `clientId` (`AUDIT-1`) — it is tenant impersonation.
 11. **Verify and run**: typecheck + build must pass (fix, don't ship
     broken); start the dev server; hand over the URL.
+12. **Write down what you built.** Fill `CLAUDE.md` § Dev Server (the run
+    command, the port, the typecheck command) and the § Tech Stack hosting
+    line if it was decided, and tick the Bootstrap "confirm the default
+    stack" box. Without this, the very next session reads an unfilled
+    `<TODO>`, obeys § Verification Habits ("don't guess"), and tells the
+    owner verification is unconfigured on a repo they just watched build
+    and run — a contradiction a non-developer cannot resolve.
 
 ## The design bar — the skeleton must be sexy
 

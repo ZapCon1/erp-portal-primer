@@ -346,7 +346,7 @@ trust-destroying bugs. Encode them as tests.
    applied identically in every rollup (project page, client page, invoice
    generation, reports).
 
-4. **Money is exact.** Store as integer minor units or a decimal type. Never
+4. **MONEY-1 — money is exact.** Store as **integer minor units** in an integer column. A decimal type is acceptable only for fractional *rates*, never for stored amounts (`docs/STACK.md` § Pinned conventions is canonical for the column type). Never
    float. Rounding rules (if any) are defined once.
 
 5. **State machines, not booleans.** Estimate/invoice/project/phase statuses

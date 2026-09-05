@@ -19,5 +19,19 @@
       "Read(**/id_rsa*)",
       "Read(**/credentials*.json)"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "Checking whether this project has been scoped...",
+            "timeout": 10,
+            "command": "if [ ! -s docs/SCOPE.md ] && [ -f .claude/skills/perp-scope/SKILL.md ]; then if [ -s docs/SCOPE.draft.md ]; then echo '{\"systemMessage\":\"Unfinished guided setup found — resuming.\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"INTERRUPTED SETUP. docs/SCOPE.draft.md exists but docs/SCOPE.md does not, so a previous guided-start interview was cut short. Invoke the perp-scope skill in RESUME MODE: read the draft, tell the owner in one line what is already answered, and continue from the first unanswered question. Do NOT restart from zero and do NOT treat this repo as unscoped.\"}}'; elif [ -f package.json ] || [ -f pyproject.toml ] || [ -f go.mod ] || [ -f Cargo.toml ]; then echo '{\"systemMessage\":\"Existing codebase detected — the kit adopts alongside it.\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"BROWNFIELD ADOPTION. This repo has existing application code and no docs/SCOPE.md. Do NOT scaffold and do NOT reshape the repo. Follow README brownfield adoption: audit what is here against the kit guidelines and report findings before changing anything. /perp-scope is still useful for capturing the business context — offer it in one line, do not auto-run it.\"}}'; else echo '{\"systemMessage\":\"Fresh primer detected (no docs/SCOPE.md) — starting the guided setup.\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"PRISTINE PRIMER. No application code and no docs/SCOPE.md, so this repo has been adopted but never scoped. Your FIRST action this session is to invoke the perp-scope skill with the Skill tool. Do not first explain the kit, list its files, summarize CLAUDE.md, or ask what they want to work on - the skill opens with its own welcome and asks the first question. Two exceptions: (1) if the user opens with a specific unrelated request, do that instead and offer /perp-scope in one line; (2) if the user says they already have a scope, requirements, spec, or RFP document, ask them to point you at the file path or paste it, and run perp-scope in IMPORT MODE per the skill.\"}}'; fi; fi"
+          }
+        ]
+      }
+    ]
   }
 }
