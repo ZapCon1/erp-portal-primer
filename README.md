@@ -256,8 +256,20 @@ below. Existing codebase → skip to **Brownfield adoption** after them.
    through installing them before going further.
    - **Claude Code** (paid subscription) — this kit is a set of files it reads.
    - **Node.js** (LTS) and **git**.
-   - **Docker Desktop**, or a Postgres you can reach. `/perp-build-core`
-     needs a real database; it will stop and tell you if one is missing.
+   - **A Postgres you can reach.** `/perp-build-core` needs a real database
+     and will stop before writing anything if there isn't one. Docker is the
+     easiest route (`docker run -d -e POSTGRES_PASSWORD=devpw -p 5432:5432
+     postgres:17`), but you don't have to install anything —
+     `docs/STACK.md` § Getting a database has a no-installer option that
+     unzips, runs, and deletes cleanly.
+
+   **And one thing to start now rather than later:** if you'll have a
+   customer portal, customer login is a **magic link**, so the portal cannot
+   work until email sends from a domain you've verified — which means adding
+   DNS records and waiting. **Begin domain verification in week one**, even
+   though you won't send for a while. Development is never blocked by it
+   (dev writes the email to the console), but go-live is.
+   `docs/MODULES.md` § Transactional email has the order to do it in.
 
 1. **Get the files into *your* repo — do not work inside a clone of the
    primer.** Either click **Use this template** on GitHub, or:

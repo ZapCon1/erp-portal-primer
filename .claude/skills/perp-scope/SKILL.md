@@ -458,6 +458,14 @@ carry it into Phase 6's hosting question. Two things to get right:
   third-party service, and that's an assessor question before it's a
   product question.
 - Then, separately: what should they **never** see?
+- **Who controls the DNS for your website domain, and can you get a record
+  added?** (You? A web person? An agency who takes a week?) Sounds like a
+  detour; it is not. Customer login is a magic link, so **the portal cannot
+  work until email sends from a verified domain**, and that verification is
+  the one setup step whose timing you do not control. Whatever the answer,
+  say the same thing back: *"then let's start that this week, before we need
+  it — everything else can be built while it propagates."* Record the answer
+  in SCOPE.md § Systems we already run on.
 - **When something happens — a quote gets accepted, an invoice goes
   overdue, a job's ready to ship — who needs to know, and how do they
   find out today?** (Someone notices? Email? A phone call that

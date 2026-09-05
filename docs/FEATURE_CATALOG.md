@@ -105,7 +105,7 @@ let the customer see it.
 | Feature | Surfaces | Notes |
 |---|---|---|
 | Notifications | 🛠 👤 | In-app bell, unread counts, type-routed. Mirror to both surfaces. |
-| Transactional email | 📧 | Auth, estimates, invoices, alerts. The bare minimum is auth email. |
+| Transactional email **[module]** | 📧 | Resend / Postmark / SES. Auth, estimates, invoices, alerts. ⚠️ **Start domain verification on day one** — it is the longest lead time in the kit and it **blocks portal login**, because customer auth is a magic link. Dev writes the mail (and the link) to the console so DNS never blocks development; the dev fallback must be unable to run in production, like the auth stub. Bounces get a suppression list or your sender reputation takes the good addresses down with the dead ones. Boundary: `docs/MODULES.md` § Transactional email. |
 | Chat / messaging | 🛠 👤 | Per-project/client threads. Heavy to build well — defer unless central. |
 | Digest emails | 📧 | Daily/weekly roll-up of unread activity. |
 
@@ -200,6 +200,7 @@ shop's language; it becomes the proposal sentence.
 | Spends real time estimating machining cost from customer models | DFM analysis (Toolpath) + Part viewing | The model you already store can tell you what's expensive to cut before you quote it |
 | Re-keys invoices into QuickBooks / Xero / Puzzle by hand | Accounting sync | You're typing the same invoice twice and reconciling the difference |
 | "I don't know who owes us what without opening the accounting software" | Receivables & statements | Aging belongs where the invoices are, and your customer should see their own |
+| Customers will log into a portal (always true here) | Transactional email, started on day one | Portal login is a magic link — until mail arrives and your domain is verified, no customer can get in |
 | Lives in Google Calendar or Outlook | External calendar sync + Integration scaffold | Deadlines the system knows about should appear where you already look |
 | Second integration of any kind on the roadmap | Integration scaffold | Build the credential, retry, and failure-alert path once — the second one is where the drift starts |
 

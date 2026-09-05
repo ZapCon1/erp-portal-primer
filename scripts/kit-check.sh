@@ -300,5 +300,15 @@ grep -qi 'millimetres' docs/MODULES.md || err "MODULES.md lost the Toolpath mm/d
 grep -qi 'server-sent event' docs/MODULES.md || err "MODULES.md reverted to polling; the API offers an SSE stream"
 grep -qi 'Bearer' docs/MODULES.md || err "MODULES.md lost the Toolpath Bearer-auth detail"
 
+
+echo "18. setup path stays painless (the blockers a new adopter actually hits)"
+grep -qi 'Getting a database' docs/STACK.md || err "STACK.md lost the how-to-get-Postgres section (build-core refuses to run without one)"
+grep -q 'prisma.config.ts' docs/STACK.md || err "STACK.md lost the Prisma 7 datasource change - adopters hit a P1012 on their first migration"
+grep -qi 'dist-tags' docs/STACK.md || err "STACK.md lost the warning that prisma@latest may be a release candidate"
+grep -qi 'Transactional email' docs/MODULES.md || err "MODULES.md lost the transactional-email module"
+grep -qiE 'SPF|DKIM' docs/MODULES.md || err "email module lost the domain-verification setup path"
+grep -qi 'magic link' docs/MODULES.md || err "email module no longer says portal login depends on it"
+grep -qi 'DNS' README.md || err "README step 0 lost the DNS lead-time warning"
+
 echo "exit: $fail"
 exit $fail

@@ -76,6 +76,76 @@ live in CLAUDE.md § Tech Stack so Claude reads them every session:
   When any tutorial, tool, or model suggests Vercel/serverless, the
   answer is no — see § Deployment for why.
 
+## Getting a database, and the two Prisma gotchas
+
+**Verified by running the adoption flow on 2026-09-05.** Both of these stop
+a new adopter cold, and neither is guessable.
+
+### You need a Postgres before `/perp-build-core` will run
+
+It refuses to start without one, on purpose — SQLite cannot express the
+integrity constructs below. Pick whichever is true of your machine:
+
+| If you have | Do this | Notes |
+|---|---|---|
+| Docker | `docker run -d --name pg -e POSTGRES_PASSWORD=devpw -p 5432:5432 postgres:17` | Simplest. Stop it with `docker stop pg`. |
+| Nothing, and you'd rather not install | Download EDB's **binaries-only zip** (not the installer), unzip it, `initdb -D pgdata`, `pg_ctl -D pgdata -o "-p 55432" start` | No service, no admin rights, no PATH change. Delete the folder to undo it. This is what a locked-down shop laptop can do. |
+| A managed Postgres already | Point `DATABASE_URL` at it | Use a *non-production* database. |
+| Windows and you want it permanent | `winget install PostgreSQL.PostgreSQL.17` | Installs a service on 5432 that starts at boot. |
+
+**Use a non-standard port if 5432 might be taken** — check first
+(`Get-NetTCPConnection -LocalPort 5432` on Windows), because a port clash
+surfaces as a confusing connection error rather than "something else is
+here".
+
+### Gotcha 1 — `latest` may be a release candidate
+
+`npm install prisma` installs whatever the **`latest` dist-tag** points at,
+and on 2026-09-05 that was an **8.0 release candidate** whose CLI has no
+`generate`, no `validate` and no `migrate dev`. That breaks `/perp-check`'s
+codegen step, the CI workflow and the deploy runbook at once, on a clean
+install, with no warning. **Run `npm view prisma dist-tags`, take the newest
+stable, and pin it exactly** (no `^`), lockfile committed — the same
+treatment Better Auth already gets.
+
+### Gotcha 2 — Prisma 7 moved the connection string out of the schema
+
+`url = env("DATABASE_URL")` inside `datasource db { }` is **rejected** from
+Prisma 7 onward. The connection now lives in `prisma.config.ts` at the repo
+root:
+
+```ts
+import 'dotenv/config'
+import { defineConfig, env } from 'prisma/config'
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  migrations: { path: 'prisma/migrations' },
+  datasource: { url: env('DATABASE_URL') },
+})
+```
+
+and the schema block keeps only the provider:
+
+```prisma
+datasource db {
+  provider = "postgresql"
+}
+```
+
+At runtime the client takes an **adapter** rather than reading the schema:
+
+```ts
+import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+export const db = new PrismaClient({ adapter })
+```
+
+Most tutorials and most training data still show the old shape, which is
+exactly the idiom-churn tax § Honest costs warns about — here it costs a
+confusing `P1012` on your first migration.
+
 ## Integrity (the below-the-ORM defense)
 
 The panel's second Django argument: Prisma's DSL can't express the
