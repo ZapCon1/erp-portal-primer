@@ -26,6 +26,7 @@ delete what doesn't apply.
 ### Day 1 — adopting the primer
 
 - [ ] **Run `/perp-scope`** — the guided-start interview (~30 min) fills most of Day 1 conversationally and writes `docs/SCOPE.md`. **If `docs/SCOPE.md` does not exist, invoke it as your first action** — don't explain the kit or ask what to work on first; the skill opens with its own welcome. A SessionStart hook in `.claude/settings.json` normally tells you this already; this line is the fallback for when hooks are off, unsupported, or the adopter is using another AI tool. **Already have a scope/spec/requirements doc?** Ask them to point at the file — the skill has an import mode. Then `/perp-build-core`.
+- [ ] **Point the owner at `docs/WHEN-IT-GOES-WRONG.md`** in the first session — the warning signs, the reset phrase, and the commit-when-it-works habit. It is written for someone who cannot read a diff, and it is most useful *before* it is needed.
 - [ ] Confirm the default stack — **Next.js + TypeScript + Prisma + PostgreSQL** (`docs/STACK.md`) — or record your deviation in **Tech Stack** below per STACK.md § "If you deviate". Not a developer? The default is the answer.
 - [ ] **Decide the three schema-shaped Key Concepts now**: billing model, datetime policy, promised dates (`<TODO>`s under Key Concepts). Changing any later means migrating live financial data.
 - [ ] Fill every `<TODO>` **in this file**. The `<TODO>`s in `.claude/skills/*/SKILL.md` wait until the stack exists in code — `/perp-setup-testing` fills the testing ones; filling commands before a `package.json` exists turns `/perp-check`'s honest "not configured" into misleading failures.
@@ -168,6 +169,36 @@ perp-setup-testing); this is a summary — the skill wins conflicts. -->
 - **This is a solo repo on `main`** — that is standing confirmation for `/perp-push`; push without asking. `origin` is the public `ZapCon1/erp-portal-primer`, so every push is a publish.
 - **No AI attribution in commit messages.** No `Co-Authored-By` naming a model/tool, no "Generated with", no 🤖 — strip tool defaults.
 - **Pre-push hook mirrors the CI fast gate** (type check + unit suite). `core.hooksPath` is per-clone config — the `"prepare"` script re-activates it; `/perp-setup-testing` wires both. `--no-verify` is for genuine emergencies only.
+
+### Stop Rules — the owner cannot review your work
+
+**Assume the person reading your output cannot evaluate it.** They asked for
+an ERP; they cannot read the diff. That makes ordinary AI failure modes
+expensive here, so these are hard rules, not preferences:
+
+- **`STOP-1` Two failures at the same step = stop.** Say what broke in plain
+  language and offer two named choices. Never grind. A long silent repair
+  loop is the single most common way an evening disappears.
+- **`STOP-2` Never weaken a test to make it pass.** Deleting an assertion,
+  loosening a matcher, or adding a skip is a **finding to report**, never a
+  fix to apply. If the test is genuinely wrong, say so and explain why
+  before changing it.
+- **`STOP-3` Confirm before anything irreversible** — deleting rows, dropping
+  or rewriting a column, `reset`/`force`, or touching a file you did not
+  create. Say what will be lost, in their words, and wait.
+- **`STOP-4` Checkpoint before risky work.** Commit first, then say the one
+  command that undoes it. "You can get back with X" must be true at every
+  moment.
+- **`STOP-5` Do what was asked.** If the fix is bigger than the request,
+  describe it and let them choose. Do not refactor, rename, upgrade or
+  reorganise as a side effect.
+- **`STOP-6` Never report done from an exit code.** Verify the artifact
+  exists and the app still runs (`PIN-3`). Tools exit 0 having done nothing.
+- **`STOP-7` Say when you are unsure.** A guess delivered confidently is
+  worse than a question, because they cannot tell the difference.
+
+When something goes wrong, `docs/WHEN-IT-GOES-WRONG.md` is written for them,
+not for you — point at it rather than explaining git.
 
 ### No Swallowed Failures
 - Every external call (email, webhook, payment, storage) logs on failure; critical paths alert a human. Audit log = what happened; observability = what failed to happen (`ARCHITECTURE.md` § Observability).

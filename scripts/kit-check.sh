@@ -340,5 +340,19 @@ except Exception as e:
     print(f"::error::PIN-5 check failed: {e}"); sys.exit(1)
 PY2
 
+
+echo "20. novice guardrails: stop rules bind the AI, and the owner has a way out"
+for id in STOP-1 STOP-2 STOP-3 STOP-4 STOP-5 STOP-6 STOP-7; do
+  grep -q "$id" CLAUDE.md || err "CLAUDE.md lost $id - the owner cannot review the work, so these are not optional"
+done
+[ -f docs/WHEN-IT-GOES-WRONG.md ] || err "docs/WHEN-IT-GOES-WRONG.md missing - the owner-facing recovery guide"
+grep -q 'WHEN-IT-GOES-WRONG' README.md || err "the recovery guide is not registered in README"
+grep -q 'WHEN-IT-GOES-WRONG' CLAUDE.md || err "nothing points the owner at the recovery guide"
+# The two things that make everything else recoverable.
+grep -qi 'commit when it works' docs/WHEN-IT-GOES-WRONG.md || err "recovery guide lost the commit-when-it-works habit"
+grep -qi 'Stop. In plain language' docs/WHEN-IT-GOES-WRONG.md || err "recovery guide lost the reset phrase"
+# STOP-2 is the one a novice can never catch unaided.
+grep -qi 'weaken a test' CLAUDE.md || err "CLAUDE.md lost the never-weaken-a-test rule (STOP-2)"
+
 echo "exit: $fail"
 exit $fail
