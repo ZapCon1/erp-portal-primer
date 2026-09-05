@@ -224,7 +224,11 @@ grep -q 'invoke it as your first action' CLAUDE.md || err "CLAUDE.md lost the ru
 grep -qi 'import mode' .claude/skills/perp-scope/SKILL.md || err "perp-scope lost import mode (bring-your-own scope doc)"
 
 echo "14. panel-review reports stay local (reviews/ gitignored, and the skill writes there)"
-grep -qE '^reviews/$' .gitignore || err "'reviews/' missing from .gitignore — panel reports would be committed"
+for pat in 'reviews/' 'screenshots/' 'shots/' 'docs/reviews/' 'docs/audits/' '\*.review.md' '\*.audit.md' 'panel-review-\*.md'; do
+  grep -qE "^${pat}$" .gitignore || err "'${pat}' missing from .gitignore — review/screenshot output would be committed"
+done
+# Deliberately NOT blanket-ignoring images: BRAND.md may reference a logo.
+grep -qE '^\*\.png$' .gitignore && err ".gitignore blanket-ignores *.png — that blocks the BRAND.md logo; ignore the output locations instead"
 grep -q 'reviews/panel-review-' .claude/skills/panel-review/SKILL.md || err "panel-review no longer writes to reviews/"
 grep -q 'docs/reviews' .claude/skills/panel-review/SKILL.md && err "panel-review still references the old docs/reviews path"
 # Prove git actually ignores it — an unmatched pattern is discovered only after a push.
