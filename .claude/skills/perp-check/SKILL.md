@@ -40,6 +40,52 @@ code** — a missing script is a skip with a reason, not a failure.
 there calmly. A pristine primer must not produce a wall of red that looks
 like a broken project.
 
+## 1b. The toolchain contract (PIN-*) — run this FIRST
+
+Idiom churn is the failure this catches, and it is worth catching **before**
+the other sensors, because otherwise it surfaces as a baffling error inside
+a migration rather than as "the command we depend on is gone".
+
+Check four things and report each as a gate:
+
+- **`PIN-1` — exact pins.** Read `package.json`: the load-bearing
+  dependencies (the framework, the ORM, the auth library, the job runner)
+  must have **no `^` and no `~`**, and a lockfile must be committed. A caret
+  is an unattended upgrade. Report each offender by name.
+- **`PIN-2` — CI uses `npm ci`.** Grep the workflow. `npm install` in CI
+  makes the lockfile advisory, which defeats `PIN-1`.
+- **`PIN-3` — the commands still exist.** For every command this kit's docs
+  tell you to run, confirm the installed CLI still has it:
+
+  ```
+  npx prisma --help    → must list `generate` and `migrate`
+  npx next --help      → must list `build`
+  ```
+
+  A **missing subcommand is a `✗` gate failure, not a skip** — it means a
+  major version removed something the CI workflow and the deploy runbook
+  both invoke.
+- **`PIN-4` — documented idioms match the installed major.** Version-
+  conditional, so it stays true as the stack moves:
+
+  | If | Then assert |
+  |---|---|
+  | `prisma` major ≥ 7 | `prisma.config.ts` exists **and** `schema.prisma` contains no `url =` inside `datasource` |
+  | `prisma` major ≤ 6 | the opposite — `url = env("DATABASE_URL")` in the datasource block |
+  | `next` major ≥ 13 | no `getServerSideProps` / `pages/api/` anywhere (App Router only — `docs/STACK.md` § Pinned conventions) |
+
+**And one habit that is not a version check at all:** *verify the artifact,
+not the exit code.* `create-next-app` has been observed exiting **0** after
+refusing to scaffold. After any generator runs, assert the thing it was
+supposed to produce actually exists.
+
+**`PIN-5` — stack freshness (drift signal, never a gate).** Read the
+`_Reviewed:_` stamp at the top of `docs/STACK.md`. Over 90 days, say so in
+one line; over 180, treat it as a finding. This is the only rule here a
+human satisfies rather than a check, and it exists because the quiet middle
+— a command that still works but is deprecated — is invisible to every
+detector above and visible in release notes.
+
 ## 2. Run the sensors
 
 Run all of them in order, **even if an earlier one fails** — the user wants

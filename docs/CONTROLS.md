@@ -53,6 +53,9 @@ that aren't installed.
 | Migration one-shot exit 0 | `OPS-2` | deploy | **yes** |
 | Integrity construct tests | `MONEY-4` | CI | **yes** |
 | Accessibility scan | `A11Y-1` | CI, once a portal view exists | **yes** *(once live)* |
+| Exact-pin + lockfile check | `PIN-1`, `PIN-2` | `/perp-check`, CI | **yes** |
+| Toolchain contract | `PIN-3`, `PIN-4` | `/perp-check`, CI | **yes** |
+| Stack review freshness | `PIN-5` | `/perp-check`, kit-check | no — drift signal |
 | Controlled-file egress gate | `CUI-1` | every outbound call, CI | **yes** *(once any file is flagged)* |
 | Released-revision immutability | `DOC-1` | DB + app, CI | **yes** *(once doc control ships)* |
 | Approval-before-release | `DOC-2` | app, CI | **yes** *(once doc control ships)* |
@@ -141,6 +144,67 @@ hosting decision that may be constrained
 What it can do is make sure the expensive, retrofit-hostile pieces — the
 classification field, the egress gate, the audit trail — exist from the
 first migration rather than being discovered at audit.
+
+---
+
+## Idiom churn (PIN-*) — the one risk this kit can actually measure
+
+`docs/STACK.md` § Honest costs names idiom churn as the strongest argument
+against the pinned stack. For a long time that was all it was: a warning.
+It is not a judgement call, though — it is **deterministic and cheap to
+detect**, which makes it a sensor problem, not a prose problem.
+
+**What churn actually looks like.** Not "a version number moved". It is one
+of three specific things, and each has a different detector:
+
+| Failure | Real example | Detector |
+|---|---|---|
+| A command you depend on disappears | `prisma@8` (the `latest` tag, on a clean install) has no `generate`, `validate` or `migrate dev` — breaking `/perp-check`, CI and the deploy runbook at once | assert the subcommand exists |
+| An idiom you documented is rejected | Prisma 7 refuses `url = env(...)` inside `datasource` — every tutorial and most training data still teach the old shape | assert the shape matches the installed major |
+| A tool "succeeds" without doing anything | `create-next-app` exits **0** after refusing to scaffold | assert the artifact exists, not the exit code |
+
+| Rule | What it means | Gates? |
+|---|---|---|
+| `PIN-1` | Load-bearing dependencies are pinned **exactly** — no `^`, no `~` — and the lockfile is committed. A caret is an unattended upgrade. | **yes** |
+| `PIN-2` | CI installs with `npm ci`, never `npm install`, so the lockfile is authoritative rather than advisory. | **yes** |
+| `PIN-3` | Every command the kit's own docs invoke still exists in the installed toolchain. | **yes** |
+| `PIN-4` | Documented idioms match the installed major version (e.g. Prisma ≥ 7 ⇒ `prisma.config.ts` exists **and** the schema carries no `url =`). | **yes** |
+| `PIN-5` | The `_Reviewed:` stamp on `docs/STACK.md` is fresh. | no — drift signal, then a gate once badly stale |
+
+### Why `PIN-3` and `PIN-4` are the interesting ones
+
+Pinning alone (`PIN-1`) only defers the problem: it makes the day you
+upgrade the day everything breaks, all at once, usually under time
+pressure. The pair above turn that into a normal failing check.
+
+They also catch the case pinning cannot: **an adopter following the kit's
+prose on a newer toolchain than the prose was written for.** That is the
+common shape — nobody upgraded, the docs were simply older than `npm`. It is
+what a fresh `npm install prisma` did on 2026-09-05.
+
+### The upgrade drill
+
+When a pin moves, do it deliberately and in this order — never as a side
+effect of an unrelated install:
+
+1. **One library, one branch.** Never bundle upgrades; you lose the ability
+   to attribute the breakage.
+2. **Read the changelog for the three things this kit depends on**: removed
+   or renamed commands, changed config shape, changed defaults.
+3. **Run `/perp-check`.** `PIN-3`/`PIN-4` fail *first* and by name, which is
+   the whole point — the alternative is a confusing error inside a migration.
+4. **Fix the kit's own docs in the same commit** as the pin. A version bump
+   that leaves `docs/STACK.md` teaching the old idiom is how the next
+   adopter inherits your afternoon.
+5. **Re-stamp `docs/STACK.md`** `_Reviewed:_` and note what changed.
+
+### What this cannot do
+
+It cannot tell you an idiom is *deprecated but still working* — the quiet
+middle where a command exists, emits a warning, and is removed two releases
+later. Nothing computational catches that; reading release notes does. So
+`PIN-5` exists to force the reading on a schedule, and it is the only rule
+here that a human has to satisfy rather than a check.
 
 ---
 

@@ -310,5 +310,35 @@ grep -qiE 'SPF|DKIM' docs/MODULES.md || err "email module lost the domain-verifi
 grep -qi 'magic link' docs/MODULES.md || err "email module no longer says portal login depends on it"
 grep -qi 'DNS' README.md || err "README step 0 lost the DNS lead-time warning"
 
+
+echo "19. idiom-churn guardrails (PIN-*) and the stack review stamp"
+for id in PIN-1 PIN-2 PIN-3 PIN-4 PIN-5; do
+  grep -q "$id" docs/CONTROLS.md || err "CONTROLS.md lost idiom-churn rule $id"
+done
+grep -q 'PIN-3' .claude/skills/perp-check/SKILL.md || err "/perp-check lost the toolchain contract (PIN-3/PIN-4)"
+grep -qi 'verify the artifact' .claude/skills/perp-check/SKILL.md || err "/perp-check lost the exit-code-is-not-proof rule (create-next-app exits 0 having done nothing)"
+grep -qi 'upgrade drill' docs/CONTROLS.md || err "CONTROLS.md lost the upgrade drill"
+# PIN-5, enforced on the kit's own stack record. STACK.md has declared this
+# convention since 0.19.0 and nothing checked it until now.
+python - <<'PY2' || err "PIN-5: docs/STACK.md review stamp is stale or unreadable"
+import re, sys
+from datetime import date
+try:
+    head = open('docs/STACK.md', encoding='utf-8').read(600)
+    m = re.search(r'_Reviewed:\s*(\d{4})-(\d{2})-(\d{2})', head)
+    if not m:
+        print("::error::docs/STACK.md has no _Reviewed:_ stamp"); sys.exit(1)
+    stamped = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    age = (date.today() - stamped).days
+    if age > 180:
+        print(f"::error::STACK.md reviewed {age} days ago (>180) - re-verify the ecosystem claims and re-stamp"); sys.exit(1)
+    if age > 90:
+        print(f"::warning::STACK.md reviewed {age} days ago (>90) - due a re-verify (PIN-5)")
+    else:
+        print(f"   (stack record reviewed {age} days ago - fresh)")
+except Exception as e:
+    print(f"::error::PIN-5 check failed: {e}"); sys.exit(1)
+PY2
+
 echo "exit: $fail"
 exit $fail

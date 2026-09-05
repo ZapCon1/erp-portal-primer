@@ -1,8 +1,10 @@
 # The Stack — decision record
 
-_Reviewed: 2026-07-03 — the ecosystem claims below (library maturity,
-versions) rot faster than principles; re-verify when this stamp is 90+
-days old._
+_Reviewed: 2026-09-05 — the ecosystem claims below (library maturity,
+versions, CLI shapes) rot faster than principles. `PIN-5` in
+`docs/CONTROLS.md` now enforces this stamp: a warning past 90 days, a
+failure past 180. Last re-verify found two breaking Prisma changes in one
+afternoon — see § Getting a database._
 
 **Not a developer?** You don't need this file — the choice is already
 made, and `/perp-scope` confirms it in one plain question. This
