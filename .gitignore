@@ -32,3 +32,11 @@ Thumbs.db
 
 # Claude Code local settings (machine-specific)
 .claude/settings.local.json
+
+# Panel review reports — local only, by design.
+# /panel-review writes here. These say in writing where the product is weak
+# (the competitor's angle, security gaps, features claimed but not built) —
+# that candor is the point, and it is not for publishing by accident.
+# Act on them; let the fixes be what reaches the repo. Delete this line only
+# as a deliberate choice, if your team keeps reviews as shared decision records.
+reviews/

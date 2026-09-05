@@ -70,11 +70,19 @@ Specifically look for:
   confirmation — easy to forget to re-run tests after deps change.
 - **Uncommitted work older than 2 hours** — a hint to checkpoint with
   `/perp-commit` soon. Don't be preachy about it; one line.
-- **Stale backup rehearsal** — if `docs/runbooks/backup-restore.md`
-  exists, read its rehearsal log: last dated row more than 90 days old
-  (or the table still all dashes) → flag it. The restore rehearsal is
-  the one "non-negotiable" ritual nothing else in the kit watches, and
-  its failure mode is losing the business's system of record.
+- **Backups — and this check must fail closed.** Two cases, and the second
+  is the one that used to be silent:
+  - `docs/runbooks/backup-restore.md` **exists** → read its rehearsal log;
+    last dated row more than 90 days old (or the table still all dashes) →
+    flag it.
+  - `docs/runbooks/backup-restore.md` **does not exist** → flag it *louder*,
+    as the top line of the report, **if the schema has any real data**
+    (any client/invoice row not marked SAMPLE, or a migration history
+    beyond the initial one). The old form only nagged people who had
+    already done the work; the owner most likely to skip the runbook got
+    zero reminders, forever. Silence about backups reads as "nothing is
+    wrong", which is the worst possible default for the one ritual whose
+    failure mode is losing the business's system of record (`OPS-1`).
 
 ## 4. Report
 

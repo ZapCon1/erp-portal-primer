@@ -23,7 +23,9 @@ good. Use four sources of information:
 5. **Tests that mirror implementation** — tests where the assertion is just the function's logic copied into the test.
 6. **Over-mocking** — tests that mock so many dependencies that they only verify the mocks. Mocks should be at architectural seams (database, HTTP clients, third-party SDKs, time) only. See `testing-conventions.md`.
 7. **Coverage gaps on critical paths** — core business logic that isn't near 100% coverage. <TODO: list what counts as "core" for this project — e.g. "scheduling, billing, hours calculation".>
-8. **Tenant isolation** — multi-tenant route tests must verify tenant scoping. Every such test file should include a cross-tenant access denial test.
+8. **Tenant isolation** (`TENANT-1`) — multi-tenant route tests must verify tenant scoping. Every such test file should include a cross-tenant access denial test.
+9. **Realm isolation** (`SEC-3`) — in a two-realm app, both directions must be tested: a portal session presented to a staff route returns 401, and a staff session to a portal route returns 401. Rejection must come from signature verification, not a cookie-name comparison. Its absence is a finding, not a gap — if a staff wrapper ever accepts a portal session, every customer is staff across every tenant, silently.
+10. **Integrity constructs tested concurrently** (`MONEY-4`) — the gap-free counter and the immutability trigger exist only to be correct under contention, so a single-threaded test proves nothing (`testing-conventions.md` § Integrity constructs). A test that generates two invoice numbers in sequence and asserts 1, 2 is the shape to flag.
 
 ## CI pipeline check
 

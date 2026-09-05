@@ -311,6 +311,21 @@ This **upgrades the `.github/workflows/ci.yml` that `/perp-setup-testing`
 wrote** — same filename, replace it in place. Never keep two workflows
 running overlapping gates.
 
+⚠️ **Carry two things across from the workflow you are replacing**, or this
+upgrade is a silent regression:
+
+1. **`npx prisma generate` before the type check.** The earlier workflow
+   flags it as required on the default stack — the generated client must
+   exist before `tsc` reads it. Dropping it makes CI typecheck and build
+   against a stale or missing client, and the failure looks like a code
+   problem rather than a workflow one.
+2. **The `services: postgres` block and `DATABASE_URL`.** The tenant-isolation
+   tests (`TENANT-1`) need a real database. A CI run without one is green in
+   a way that means nothing — see `/perp-setup-testing` for the block.
+
+The YAML below shows the coverage wiring, not the whole file. Merge it into
+what you have rather than pasting over the steps named above.
+
 Create/replace `.github/workflows/ci.yml`:
 
 ```yaml

@@ -38,7 +38,7 @@ Use four sources of information:
 
 3. **Helper sharing** — server endpoints serving the same data must share an underlying helper (one helper, multiple auth-wrapped routes). Flag endpoints where one surface inlines logic the other reimplements.
 
-4. **UI component sharing** — JSX (or equivalent) duplicated under per-surface directories instead of living in a shared components dir. Find near-duplicates by comparing component structure, not just file names. <TODO: list the UI surfaces that are most prone to this in your project — e.g. "dashboards, list rows, header cards".>
+4. **UI component sharing** — JSX (or equivalent) duplicated under per-surface directories instead of living in a shared components dir. Find near-duplicates by comparing component structure, not just file names. Start with the concepts this kit already knows are shared: status chips, money cells, date cells, stat tiles, empty states, the helper banner, and list rows. Add any others specific to your project.
 
 5. **Visibility / permission gating consistency** — fields gated by a permission on one side must have an analogous gate on the other (or a documented reason they don't). <TODO: list the specific visibility flags or permissions worth spot-checking each audit, e.g. "tenant.portalBudgetVisibility, ITAR flags, POC tier gates".>
 
@@ -70,7 +70,14 @@ For a broad sweep (no argument):
 - Don't fix anything. Just report.
 - Don't flag intentional asymmetry (e.g., admin-only features) when it's documented.
 - Don't propose extracting helpers for two-instance duplication (per `CLAUDE.md`: two is fine, three is borderline, four+ extract).
-- Don't conflate visual differences with behavioral differences. Different layouts across surfaces are fine; different *numbers* are not.
+- Don't conflate visual differences with behavioral differences. **Different
+  density and layout across surfaces are fine** — the portal is the same
+  design language tuned quieter. **Different component vocabulary, status
+  labels, or status colors are not**: a customer seeing "Overdue" in amber
+  where staff see red, or "Awaiting payment" where staff see "Sent", is the
+  same trust problem as a different number wearing different clothes.
+  `docs/PORTAL_UX.md` § Default tokens holds the one canonical status map.
+  Different *numbers* are never fine.
 
 ## Parity matrix format
 

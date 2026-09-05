@@ -38,11 +38,19 @@ has gaps, and absent tooling is itself a finding.
 
 ## Refactor threshold
 
-- **No refactor needed** if: no non-test files over 500 lines, no logic block duplicated four or more times, no tangled business logic, the dependency audit is clean, and type coverage is solid. Say so and stop.
+- **No refactor needed** if: no non-test files over 500 lines, no logic block duplicated four or more times, no tangled business logic, the dependency audit is clean, type coverage is solid, **and no `SCALE-*` violation below**. Say so and stop.
 - **Refactor recommended** if any of these are true:
   - 3+ non-test files over 500 lines.
   - Same logic block duplicated 4+ times (per `CLAUDE.md`: three is borderline — note it, don't force the refactor).
   - Business logic embedded in framework code that can't be unit-tested.
+  - **`SCALE-1` — any table carrying `clientId` without a composite index
+    `(clientId, <primary filter>)`.** This is a schema fix and it gets
+    cheaper the earlier it happens (`docs/DOMAIN_MODEL.md` § Scale notes).
+  - **`SCALE-2` — any tenant-scoped list query without a limit or cursor.**
+    "A customer with three years of history is not an edge case; it's a
+    customer." These two used to be findable here and still permit a
+    "no refactor needed" verdict, because scale was not one of the gate
+    conditions — it is now.
   - The dependency audit reports moderate or higher vulnerabilities.
   - Multiple type-safety escape hatches in core logic files.
 

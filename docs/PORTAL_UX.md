@@ -11,7 +11,7 @@ recommended for 🛠 internal too.
 > (in force June 2025) covers exactly this class of portal. Accessibility
 > here is exposure management, not polish.
 
-## Required states — every view ships all four
+## Required states — every view ships all of these
 
 1. **Empty** — zero projects, zero invoices, the brand-new client's first
    login. Say what will appear here and (if applicable) what action creates
@@ -23,6 +23,20 @@ recommended for 🛠 internal too.
    "Operation failed" is a guaranteed support ticket with no exit.
 4. **Partial** — optional data missing (no phases yet, no payments yet)
    renders as an explained gap, not a layout collapse.
+
+5. **Truncated** — any paged or capped list says so: a count, a cursor
+   control, or "showing 20 of 143". `docs/DOMAIN_MODEL.md` § Scale notes
+   requires list endpoints to take a limit from day one; if the UI never
+   says a limit was applied, a customer looking for a 2023 invoice concludes
+   it doesn't exist. **A silent first page is a data-loss bug, not a layout
+   choice** — and it is exactly the kind of disagreement between surfaces
+   `CLAUDE.md` § Parity calls trust-destroying.
+6. **Success** — a mutation that appears to do nothing has failed as far as
+   the user is concerned. Show a visible confirmation and announce it in a
+   live region (a silent repaint is invisible to a screen reader).
+7. **Destructive confirm** — name the object in the prompt ("Delete job
+   ABC2601?"), make Cancel the default action, and if there is no undo, say
+   so in the prompt.
 
 ## Error copy mirrors the security semantics
 
@@ -38,7 +52,28 @@ recommended for 🛠 internal too.
 
 ## Accessibility baseline
 
-- **Semantic HTML**: real `<button>`, `<a>`, `<label>`, `<table>` — no
+**Target: WCAG 2.2 Level AA.** That is what ADA settlements and EN 301 549
+(the standard the European Accessibility Act points at) both resolve to, and
+it is the answer to give a customer's procurement team or a VPAT request.
+The rules below are this project's high-frequency subset — they are not a
+substitute for the standard. The EAA also expects a covered service to
+publish an **accessibility statement**; add that page before go-live.
+
+- **Semantic HTML**: real `<button>`, `<a>`, `<label>`, `<table>`
+- **Financial tables need more than `<table>`**: a `<caption>`, `<th scope>`
+  on row and column headers, and header association — otherwise a screen
+  reader reads invoice lines as a stream of unlabelled numbers.
+- **Money-moving actions are confirmed or reversible** (WCAG 3.3.4, which
+  exists specifically for legal and financial transactions): a review step
+  before "Pay", or an undo after it.
+- **Session expiry warns before it happens** with a way to extend (WCAG
+  2.2.1) — portal magic-link sessions do expire, and silently losing a
+  half-filled form is the failure this prevents.
+- **Reflow at 400% zoom / 320px** without two-axis scrolling. Wide financial
+  tables are where this breaks, and the portal is explicitly a phone and
+  shop-tablet surface.
+- **Per view**: a unique `<title>`, one `<h1>`, headings in order, a skip
+  link, and `<html lang>`. — no
   div-buttons, no click-handlers on spans.
 - **Keyboard**: every action reachable and operable by keyboard; modals
   trap and restore focus; visible focus indicator.
@@ -67,6 +102,23 @@ recommended for 🛠 internal too.
 - **E2E golden paths keyboard-only**: login, view an invoice, pay — per
   `testing-conventions.md`, these earn their E2E place.
 
+## Documents customers receive (PDFs)
+
+The invoice is the artifact the portal exists to deliver, and it has legal
+and financial consequence — so it is inside the accessibility baseline, not
+beside it.
+
+- **`@react-pdf/renderer` cannot emit tagged PDFs.** An untagged PDF has no
+  document structure, no reading order and no table headers: a screen reader
+  gets unstructured characters, which for money is worse than nothing.
+- **Ship an accessible path either way**: render the PDF through the
+  Chromium fallback (`docs/STACK.md`) with tagging enabled, **or** publish an
+  HTML view of the same invoice at a stable URL, generated from the same
+  money helpers the PDF uses. The HTML route is usually cheaper and it
+  satisfies parity for free.
+- Set the document `Lang`, give it a real title, and never encode status by
+  color alone in a document someone may print in greyscale.
+
 ## The visual bar (both surfaces)
 
 The app should look like a product someone pays for — from the first
@@ -84,6 +136,42 @@ The app should look like a product someone pays for — from the first
 - **Two surfaces, one family**: the portal is the same design language
   tuned quieter — customers get calm and legible; staff get density.
   Shared components carry the consistency (CLAUDE.md § Parity).
+
+### Default tokens — real values, so "designed" is checkable
+
+Zero concrete values makes "the skeleton must be sexy" unspecifiable and two
+runs of `/perp-build-core` produce two unrelated-looking apps. These are
+brand-neutral defaults; `docs/BRAND.md` overrides the accent only.
+
+```
+Type scale   12 / 14 / 16 / 20 / 28 / 36px   weights 400, 500, 600
+             body 14–16px, line-height 1.5; headings 1.2
+Spacing      4 8 12 16 24 32 48 64  (one 4px rhythm — no 5s, no 13s)
+Radius       6px controls · 10px cards
+Shadow       rest  0 1px 2px rgb(0 0 0 / .06)
+             float 0 4px 12px rgb(0 0 0 / .10)
+Neutrals     #0F1115 ink · #3A4150 body · #6B7382 muted
+             #E4E7EC border · #F6F7F9 surface · #FFFFFF card
+Semantic     success #0F7B4F · warning #9A6400 · danger #B3261E · info #1B5FB0
+             (all ≥ 4.5:1 on white; pair every one with text or an icon)
+```
+
+**Status chips — one canonical mapping, both surfaces.** The statuses are
+discriminated unions in the domain model; their appearance must be equally
+canonical, or "overdue" ends up amber on the dashboard and red in the list.
+
+| Status | Label | Tone |
+|---|---|---|
+| draft | Draft | neutral |
+| sent | Sent | info |
+| paid | Paid | success |
+| overdue | Overdue | danger |
+| accepted | Accepted | success |
+| declined / expired | Declined · Expired | neutral |
+
+**Theme:** light only in Phase One. The token layer is what makes dark a
+later swap — until then, "check contrast on dark backgrounds" is checking a
+surface that doesn't exist.
 
 ## Mobile
 

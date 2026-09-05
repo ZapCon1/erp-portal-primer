@@ -1,12 +1,12 @@
 # ERP Customer Portal — Claude Code Primer
 
-**Version 0.19.0** (2026-07-22) — see `CHANGELOG.md`. Record this version in
+**Version 0.20.0** (2026-09-05) — see `CHANGELOG.md`. Record this version in
 your adopted repo (adoption step 1) so you can diff against future releases
 (see **Staying current** below).
 
 **In one breath**: an opinionated starter kit of Claude Code context
 files for building a custom ERP-with-customer-portal — decided stack
-(Next.js/TypeScript/Prisma/Postgres, panel-vetted), a 15-minute guided
+(Next.js/TypeScript/Prisma/Postgres, panel-vetted), a 30-minute guided
 start (`/perp-scope`), the financial guardrails (parity, tenant
 isolation, audit-everything), and the shop-floor domain (travelers,
 dispatch, purchasing, customers viewing their own CAD parts in the
@@ -42,7 +42,7 @@ entity factories, a real starter test, coverage, CI, and the pre-push
 hook, and fills the testing `<TODO>`s for you.
 
 **Start here**: after copying the files in, run **`/perp-scope`** —
-15–20 minutes, one question at a time, and it tailors the whole kit to
+About 30 minutes, one question at a time, and it tailors the whole kit to
 your answers. Then run **`/perp-build-core`**: one pass, zero
 questions, and you're clicking around your own app — your vocabulary,
 your colors, your pain point on the dashboard, sample data everywhere,
@@ -88,10 +88,11 @@ production ERP-with-portal, which is where this kit came from.
    approved-only inputs, and an audit-log entry on every financial mutation.
    See `DOMAIN_MODEL.md` § Invariants.
 
-3. **Tenant isolation with no safety net.** The customer is the tenancy
-   boundary; every portal query filters by client id, enforced by discipline
-   and audited continuously — not by the ORM. Cross-tenant access returns
-   404, never 403.
+3. **Tenant isolation, enforced below the query.** The customer is the
+   tenancy boundary; every portal query filters by client id — and the kit
+   tells you to back that with a mechanism that fails closed (Postgres RLS or
+   a Prisma client extension), with wrappers, tests and the parity audit as
+   layers on top. Cross-tenant access returns 404, never 403.
 
 ---
 
@@ -111,6 +112,42 @@ off-the-shelf tools can't express, or the **portal itself is your
 differentiator** with customers. If none apply, buy — this primer will
 still be here if you outgrow it. If you're not sure what some of these
 words mean, start with `docs/GLOSSARY.md`.
+
+**Honest note on the comparison.** For a *manufacturer*, the alternative to
+compare against is not a PSA tool — it's a job-shop ERP (JobBOSS, E2,
+Fulcrum, ProShop, Paperless Parts). Those cost hundreds to thousands a month
+rather than tens, and they ship the shop-floor half — travelers, routing,
+outside processing — that no PSA does. If one of them fits how you work,
+buy it. "My workflow is the moat" has to mean something narrower than "PSA
+can't do shop floor," because that's true of every shop.
+
+**What the operating tax table below does not price**, and you should: the
+AI subscription and token spend to build and maintain an ERP against this
+spec; your own hours, converted from "months of engineering" into evenings;
+what happens if the one person doing this stops; and — until the Accounting
+sync module ships — re-keying every invoice into QuickBooks by hand, which
+is *new* work relative to your status quo.
+
+## If you want out
+
+The realistic failure of a self-built ERP isn't "it doesn't work." It's "I
+ran out of evenings in month four," and that decision arrives when you're
+tired, with real customer data already inside. So the exit is a Tier-0
+feature, not an afterthought:
+
+- **Full data export** ships in Tier 0 (`docs/FEATURE_CATALOG.md`) — one
+  command, every table, CSV or JSON. Build it before the first real record
+  exists, not when you need it.
+- **What moves cleanly**: clients, contacts, jobs, time, invoices, payments.
+  Most PSA and shop-ERP products import a CSV of those.
+- **What doesn't**: the audit log (nobody else's schema has yours) and the
+  file store (export it as a folder tree beside the CSVs, not as links that
+  die with the app). Say this out loud before you start, not after.
+- **The stopping points that leave you whole**: after Tier-0 you have a
+  working quote-to-cash system; after `/perp-build-core` alone you have a
+  clickable skeleton and no obligation. Neither is a trap. The trap is a
+  half-migrated business with data in two places — so don't turn off the old
+  spreadsheet until the export works.
 
 ---
 
@@ -132,6 +169,9 @@ words mean, start with `docs/GLOSSARY.md`.
 | `docs/STACK.md` | `docs/` | **The stack decision record**: Next.js + TypeScript + Prisma + PostgreSQL, pinned conventions, the per-concern library table, integrity rules, deployment (never serverless), the CAD part-viewing architecture, and what deviating costs you. |
 | `docs/DOMAIN_MODEL.md` | `docs/` | The conceptual entity model and the **invariants** that keep an ERP correct — including what must never be pruned. |
 | `docs/FEATURE_CATALOG.md` | `docs/` | The menu of features an ERP-with-portal grows into, tagged by surface, with sequencing advice. A planning aid. |
+| `docs/CONTROLS.md` | `docs/` | **What actually enforces the rules.** Splits every control into *guides* (steer before — docs and skills; weak) and *sensors* (observe after — types, tests, scans; strong), maps each rule to whatever enforces it, and marks which sensors **gate** a push versus which are only drift signals. Names the rules nothing enforces yet, rather than letting silence read as coverage. Home of the permanent **go-live gates**. |
+| `docs/DEPLOYMENT_TARGETS.md` | `docs/` | **Where it runs.** Maps STACK.md's web + worker + Postgres shape onto a VPS, a PaaS, AWS, **AWS GovCloud**, Azure, and GCP — the four concerns that change per substrate, the two rules that never do, why Fargate honors the never-serverless pin and Lambda doesn't, the CUI egress trap, and a decision ladder that ends in "the VPS" for most shops. |
+| `docs/MODULES.md` | `docs/` | The **boundary map** over that menu: spine vs. capability modules vs. integration modules vs. dimensions, the dependency graph, the module contract, and the shared integration scaffold. Answers "what can I leave out?" — including AS9100 doc control, the CAD/OpenCascade module, Toolpath DFM, and the CMMC posture. |
 | `docs/PORTAL_UX.md` | `docs/` | Portal UX + accessibility baseline — required states, keyboard/semantic-HTML rules. MUST for portal (👤) and public (🌐) UI work. |
 | `docs/GLOSSARY.md` | `docs/` | Plain-language definitions of the terms of art in these docs — domain, security, and build/ship vocabulary. |
 | `docs/TESTING-PIPELINE.md` | `docs/` | **Optional, stack-specific**: ready-to-copy Vitest + Playwright + merged-coverage + a11y pipeline. Delete if you're not on that stack. |
@@ -139,6 +179,8 @@ words mean, start with `docs/GLOSSARY.md`.
 | `docs/runbooks/deploy.template.md` | rename → `deploy.md` | The executable deploy: compose skeleton (web + worker + Postgres), migrations run exactly once, rollback. Fill in **before go-live**. |
 | `docs/runbooks/incident-response.template.md` | rename → `incident-response.md` | One-page incident playbook: secret leak, breach, data loss, downtime. Fill in **before go-live**. |
 | `docs/runbooks/release-checklist.template.md` | rename → `release-checklist.md` | The pre-release ritual, with `/perp-review-parity` as its anchor. |
+
+| `docs/BRAND.template.md` | rename → `docs/BRAND.md` | Company display name, logo, the one accent color (with its accessible text variant), and tone. `/perp-scope` writes it **always** — with neutral defaults in force when no brand was collected — because `/perp-build-core` depends on it. |
 
 **Templates (`features/`):**
 
@@ -151,7 +193,7 @@ words mean, start with `docs/GLOSSARY.md`.
 
 | Skill | Purpose |
 |---|---|
-| `/perp-scope` | **Run this first.** Guided-start interview (15–20 min, plain language): your business, billing model, deposits, portal, stock, goals, and the one feature you wish you had → fills the CLAUDE.md `<TODO>`s, writes `docs/SCOPE.md` + `docs/BRAND.md` + `docs/VOICE.md`, proposes what to prune and build first. |
+| `/perp-scope` | **Run this first.** Guided-start interview (~30 min, or ~10 in express mode; plain language): your business, volume and who-sees-what, how you quote, billing model, deposits, shop floor, shipping, certification and regulated data, portal, notifications, where files live, stock, goals, and the one feature you wish you had → fills the CLAUDE.md `<TODO>`s, writes `docs/SCOPE.md` + `docs/BRAND.md` + `docs/VOICE.md`, proposes what to prune and build first. |
 | `/perp-build-core` | **Run this second — the magic moment.** One pass, no questions: both shells, both dashboards (your pain point top-left), Settings pre-filled, your spine's screens in your vocabulary, portal faces, SAMPLE data so everything's clickable, dev-mode sessions behind real auth wrappers — ends with a running URL and "what should we make real first?" |
 | `/perp-feature <name>` | Scaffold a `features/<name>.md` plan doc and register it in the index. **The one-minute demo.** |
 | `/perp-check` | Full verification suite. Per-step `<TODO>` guard — runs what's configured, reports what isn't, never improvises. |
@@ -169,19 +211,24 @@ words mean, start with `docs/GLOSSARY.md`.
 
 | File | Goes in | Purpose |
 |---|---|---|
-| `.gitignore` | repo root | Secrets/artifacts ignore list — verify it covers your stack **before the first commit**. |
+| `.gitignore` | repo root | Secrets/artifacts ignore list — verify it covers your stack **before the first commit**. Also ignores `reviews/`, where `/panel-review` writes: those reports state plainly where the product is weak, and that candor is meant to stay local. |
 | `.env.example` | repo root | Placeholder env contract (no real secrets). Copy to `.env`, fill in, and add a startup check for required vars. |
-| `.claude/settings.json` | `.claude/` | Permission denies for Claude Code's file Read/Edit tools on `.env` variants, keys, and credentials (`.env.example` is deliberately readable). **Boundaries**: shell output is not covered, and none of it applies in other AI tools — the `secure_coding.md` § 8 rules are the defense there. |
-| `.github/workflows/kit-check.yml` + `scripts/kit-check.sh` | delete after adoption | The primer's own consistency checks (cross-references, version stamps, review banners, the pin mirror) — same script runs locally and in CI. Your app's CI is the `ci.yml` that `/perp-setup-testing` writes. |
+| `.claude/settings.json` | `.claude/` | Two things. (1) Permission denies for Claude Code's file Read/Edit tools on `.env` variants, keys, and credentials (`.env.example` is deliberately readable). **Boundaries**: shell output is not covered, and none of it applies in other AI tools — the `secure_coding.md` § 8 rules are the defense there. (2) A **SessionStart hook** — **executable shell that runs automatically at session start** — that auto-starts `/perp-scope` when `docs/SCOPE.md` is missing. ⚠️ **Treat this file like CI config**: review every change to it in a PR, and never merge an edit to the `hooks` block you didn't write; once a second person can land a commit, editing that one string is code execution on your machine with no permission prompt, so a freshly adopted repo goes straight into the guided setup. It emits nothing once you've been scoped, and nothing if you renamed the `perp-` prefix away — delete the `hooks` block to opt out. |
+| `.github/workflows/kit-check.yml` + `scripts/kit-check.sh` | **keep the half that's yours** | Mixed: some checks are the primer's own bookkeeping (version stamps, its cross-references) and are safe to delete. **Others bind *your* repo forever** and should be kept and wired into your CI — skill-name-matches-directory, the CLAUDE.md size budget (yours is the one that will grow), every `features/*.md` registered in the index (that's the `/perp-feature` workflow), `§` anchors resolving, the auto-scope hook still firing, and `reviews/` staying gitignored so panel reports are never committed. Deleting the lot removes the only thing enforcing the discipline the rest of this kit argues for. Your app's test CI is separately the `ci.yml` that `/perp-setup-testing` writes. |
 | `LICENSE` | **reference only** | MIT, for the primer itself — keep it as `LICENSE-primer.md` or in your notes. Do NOT place it at your repo root unless you intend to MIT-license your own code. |
 | `CHANGELOG.md` | reference only | The primer's own version history — check it when a new primer version ships. |
 
 **Renaming the `perp-` prefix** — it's just a namespace; rename it freely,
-but all four steps are load-bearing: (1) rename the
+but every step below is load-bearing: (1) rename the
 `.claude/skills/perp-*` directories, (2) update the `name:` frontmatter
 inside each `SKILL.md` to match, (3) search-and-replace `/perp-` and bare
-`perp-` across the **living** docs — leave CHANGELOG.md alone, it's
-history and keeps old names by convention,
+`perp-` across **every file except `CHANGELOG.md`** — which specifically
+includes the `.claude/skills/*/SKILL.md` **bodies** (they cross-reference
+each other dozens of times; renaming only the directories leaves every
+skill pointing at commands that no longer exist) and **`.claude/settings.json`**,
+whose auto-scope hook names the skill path — miss it and the guided start
+silently stops firing. The one-liner:
+`grep -rl 'perp-' . --exclude=CHANGELOG.md | xargs sed -i 's/perp-/yourprefix-/g'`,
 (4) update or delete `.github/workflows/kit-check.yml`, whose checks
 know the `perp-` prefix. Skipping (1) or (2) leaves the commands
 registered under the old names while the docs point at the new ones.
@@ -204,13 +251,35 @@ plugin has no equivalent.
 **Two paths — pick yours first.** Fresh, empty repo → the numbered steps
 below. Existing codebase → skip to **Brownfield adoption** after them.
 
-1. **Copy the files** into your new project root (matching the "Goes in"
-   column above). Create `docs/`, `features/`, and `.claude/skills/` as
-   needed. **Record the primer version** (top of this file) in your repo —
-   and commit the pristine copy first, so you can diff your adaptations
-   and future primer releases against it. Then prove it works:
-   `/perp-feature invoicing` gives you a scaffolded plan doc in under a
-   minute.
+0. **Before you start**, you need four things installed. If none of these
+   words mean anything to you, that's fine — ask Claude Code to walk you
+   through installing them before going further.
+   - **Claude Code** (paid subscription) — this kit is a set of files it reads.
+   - **Node.js** (LTS) and **git**.
+   - **Docker Desktop**, or a Postgres you can reach. `/perp-build-core`
+     needs a real database; it will stop and tell you if one is missing.
+
+1. **Get the files into *your* repo — do not work inside a clone of the
+   primer.** Either click **Use this template** on GitHub, or:
+
+   ```bash
+   git clone --depth 1 https://github.com/ZapCon1/erp-portal-primer.git primer
+   mkdir my-shop && cp -r primer/. my-shop/ && rm -rf my-shop/.git primer
+   cd my-shop && git init
+   ```
+
+   ⚠️ **Why this matters more than it looks.** If you clone the primer and
+   start working in it, `origin` still points at a public repository. Your
+   `docs/SCOPE.md` will hold your billing model, your margins policy, your
+   client list, and your regulated-data answers — and a `/perp-push` to a
+   fork publishes all of it. `/perp-scope` refuses to run if `origin` is
+   still the primer, but get this right at step 1 rather than relying on
+   the guard.
+
+   Then: **record the primer version** (top of this file) in your repo, and
+   **commit the pristine copy first**, so you can diff your adaptations and
+   future primer releases against it. Prove it works with
+   `/perp-feature invoicing` — a scaffolded plan doc in under a minute.
 2. **Run `/perp-scope`** — the guided interview fills `What It Is`, the
    billing and datetime decisions, and your brand/scope docs
    conversationally. The default stack (Next.js + TypeScript + Prisma +
@@ -218,8 +287,13 @@ below. Existing codebase → skip to **Brownfield adoption** after them.
    unless you bring a preference or an existing codebase. Provider
    choices (which storage/payment service) wait for `/perp-feature`'s
    feature interview — scope collects capabilities, not vendors.
-3. **Search for `<TODO>`** across every file and replace what the
-   interview didn't cover with your specifics.
+3. **Fill the `<TODO>`s that are yours** — in `CLAUDE.md`, `secure_coding.md`,
+   and the runbook templates. **Leave the ones inside `.claude/skills/`
+   alone until your stack exists in code**: filling `/perp-check`'s commands
+   before there's a `package.json` turns its honest "not configured" into
+   failures you can't diagnose. `/perp-setup-testing` fills those when the
+   time comes. Easiest route: ask Claude *"which TODOs do I still need to
+   answer?"* rather than searching by hand.
 4. **Prune.** Delete entities/features/sections you don't need. A two-person
    shop does not need SSO, retainers, or a partner program on day one. Don't
    carry dead rules forward — but read `DOMAIN_MODEL.md`'s "what's prunable
@@ -267,10 +341,12 @@ To take a new release:
    **github.com/ZapCon1/erp-portal-primer**, or use GitHub's
    "Watch → Releases" for notifications. Questions or a defect to
    report: **chris@zappettiniconsulting.com**.
-2. Read the `CHANGELOG.md` entries **for every release you skipped** —
-   releases may come in bursts (they did during the kit's bootstrap;
-   expect batched, occasional releases from here; pre-1.0 may still
-   reorganize files). Security-section changes are do-not-skip.
+2. Read the `CHANGELOG.md` entries **back to your adopted version — and no
+   further.** Anything before **v0.19.0** predates the public repo, has no
+   diff base you could act on, and is kept only as history. Releases may
+   come in bursts (they did during the kit's bootstrap; expect batched,
+   occasional ones from here; pre-1.0 may still reorganize files).
+   Security-section changes are do-not-skip.
 3. Diff the new release against your **pristine-copy commit** (adoption
    step 1) **once, against the latest tag** — no need to walk
    intermediate tags — then apply the hunks that touch files you kept.
@@ -278,8 +354,12 @@ To take a new release:
    the public repo starts at **v0.19.0**; earlier versions were
    pre-release and have no public diff base — re-adopt from current.)
 
-Found a defect? Send it back through the same channel — this kit improves
-by adopters' findings.
+Found a defect? **Open an issue** — that is the preferred channel, because
+a public issue means the next adopter can find that someone already hit it,
+and the fix that followed. Email works too if the report contains anything
+you'd rather not publish. This kit improves by adopters' findings: the
+release history shows several rules that exist only because one shop hit a
+wall and said so.
 
 ---
 
@@ -308,7 +388,23 @@ release, and the quarterly restore rehearsal.
 - **`/perp-check` refuses to run anything** — by design: its steps are
   still `<TODO>`. Run `/perp-setup-testing` to fill the testing ones; it
   reports exactly which steps remain.
-- **The pre-push hook blocked my push** — that's it working. Fix the
+- **The guided setup didn't start when I opened the project** — that's the
+  auto-scope *session* hook, which is a convenience, not the mechanism.
+  It stays quiet if hooks are disabled, if you're in another AI tool, or on
+  a shell that can't run its POSIX one-liner (Windows without Git Bash).
+  Nothing is broken: just type `/perp-scope`. That always works.
+- **Claude keeps starting the guided setup and I'm not ready** — the same
+  session hook. It stops on its own the moment `docs/SCOPE.md` exists; to
+  silence it now, delete the `hooks` block from `.claude/settings.json`.
+  Adopting into an existing codebase? It detects that and switches to
+  brownfield advice instead of pushing the interview.
+- **`/panel-review` is listed twice** — you have a project copy and a
+  personal one at `~/.claude/skills/`. **The project copy is the one to
+  keep**: delete `~/.claude/skills/panel-review/`. Editing the wrong copy is
+  a change that silently does nothing.
+- **The pre-push hook blocked my push** — that's the *git* hook, and that's
+  it working. (Two different hooks share the word: the git pre-push hook
+  runs your tests; the session hook above starts the interview.) Fix the
   failure (`/perp-check` shows it), then push again. `--no-verify` is for
   genuine emergencies, not red suites.
 - **The hook doesn't run at all on a fresh clone** — `core.hooksPath` is

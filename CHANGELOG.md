@@ -4,6 +4,255 @@ All notable changes to the primer. Adopters: record the version you
 adopted in your repo (see README § How to adopt) so you can diff
 against future releases.
 
+## 0.20.0 — 2026-09-05
+
+**Modules, deployment targets, and a verification layer that can actually
+fail.** A 16-perspective panel review of the whole kit ran mid-release and
+found its central weakness: ~8,000 lines of *guidance* enforced by a
+consistency script in which **four checks could not fail**. Most of what
+follows is the response to that.
+
+### Modules — the boundary map
+
+- **New `docs/MODULES.md`.** `FEATURE_CATALOG.md` is the menu of features;
+  this is the map of *boundaries* — four layers (**spine** · **capability
+  modules** · **integration modules** · **dimensions**), a dependency graph,
+  a 10-point module contract, and an **inert-by-default** rule so a
+  catalogue never reads as a build list.
+- **Dimensions are named and defended.** The portal was already "a dimension,
+  not a phase"; MODULES.md gives the reason a module boundary can't hold it,
+  and adds **compliance posture** as the second. AS9100 doc control is a
+  module (entities, screens); CMMC is not (a property of every module).
+- **New capability modules**: **Doc control (AS9100)** — controlled
+  revisions, approvals before release, acknowledgments, prints stamped
+  "uncontrolled when printed"; **Quality records** (inspection · NCR ·
+  CAPA · calibration · first article); **Lot & serial traceability**;
+  **Cost build-up & job costing**; and **Receivables & statements**.
+- **Accounting split in two, with the boundary stated**: the app is the AR
+  sub-ledger of record, **the general ledger stays in QuickBooks/Xero/Puzzle**.
+  Double-entry in-app would make every number computable two ways.
+- **Estimating gained the number behind the price.** Cost and price are two
+  numbers with one formula each, with quantity breaks and
+  estimated-vs-actual; only price reaches the portal.
+- **New integration modules**: an **integration scaffold** built once
+  (`IntegrationConnection`, per-provider sync jobs, idempotency keys, loud
+  failure) carrying **`mayReceiveControlledData`, default false** — which
+  turns "never send export-controlled files to a third party" from a
+  paragraph into a check the uploader runs; **Toolpath** DFM analysis
+  (API-key auth, no webhooks — upload and poll; requires Part viewing, and
+  the same STEP file feeds two async derivations); **Accounting sync**;
+  **Google Workspace / Microsoft 365**; and **file storage**
+  (Box · Dropbox · SharePoint · Drive) in three modes, of which **ingest**
+  is recommended. ⚠️ Their sharing settings become your access control,
+  downloads from the service never reach your audit log, and **doc control's
+  rev letter beats the service's own version history** — that one fails
+  silently.
+- **Full data export is Tier 0.** The kit documented no way out. The
+  realistic failure of a self-built ERP is "I ran out of evenings in month
+  four", decided while exhausted with real customer data inside.
+
+### Deployment — one shape, many substrates
+
+- **New `docs/DEPLOYMENT_TARGETS.md`** maps the pinned web + worker +
+  Postgres shape onto a VPS, PaaS, AWS, **AWS GovCloud**, Azure, GCP and
+  on-prem. Four concerns change per substrate; two rules never do (exactly
+  one process runs migrations; the worker is never the web service scaled
+  to N).
+- **The never-serverless pin is clarified as shape, not vendor.** It rejects
+  request-scoped functions, not managed containers — **ECS Fargate and Azure
+  Container Apps honor it**. ⚠️ **Cloud Run and App Runner do not**: both
+  throttle CPU between requests, so a pg-boss poller starves.
+- **GovCloud documented as its own cloud**, not a region flag — separate
+  account and credentials, the **`arn:aws-us-gov:` partition** (the most
+  common porting bug), two regions, vetted access, lagging service parity.
+  Stated plainly: **necessary, not sufficient.** Baselines and equivalency
+  are pointed at an assessor rather than asserted.
+- **The egress trap**: a compliant host is defeated by transactional email,
+  error tracking, CDNs, LLM tooling, cloud file storage, third-party
+  analysis APIs — and **alerting**, which collides with the go-live
+  requirement for an alert that reaches a human.
+- **A decision ladder that ends at "the VPS"** for most shops. Substrate is
+  the last decision, not the first.
+
+### Controls — the release's centre of gravity
+
+- **New `docs/CONTROLS.md`** answers the only question that matters about a
+  rule: *what happens if I break it?* Controls split into **guides** (steer
+  before; weak by nature) and **sensors** (observe after; strong when
+  deterministic), with a sensor map carrying an explicit **Gates?** column.
+  Its standing rule: **a rule stated in a guide with no sensor behind it is
+  not enforced — it is a hope**, and `/perp-check` reports it as a finding.
+  It names, honestly, the rules nothing currently enforces.
+- **`SEC-2` — the dev-auth stub is a control, not a checkbox.** The panel's
+  most dangerous finding: its only gate was a checkbox inside the Bootstrap
+  section the kit tells you to delete, so the realistic path (build, click
+  around for weeks, deploy to show a customer) ended in an internet-exposed
+  ERP where every visitor is a staff admin across all tenants. Now
+  `/perp-build-core` writes a startup assertion that **refuses to boot**,
+  `/perp-check` gates on it, and the release checklist — which had **zero**
+  security lines — verifies it every release.
+- **Go-live gates moved out of the deletable block** into CONTROLS.md,
+  permanently. The same defect had swallowed the accessibility and
+  monitoring gates.
+- **Stable rule IDs** (`TENANT-1`, `SEC-2`, `MONEY-1`, `PARITY-1`,
+  `AUDIT-1`, `STRUCT-1`, `SCALE-1`, `A11Y-1`, `OPS-1`) so a check failure or
+  a review can cite one instead of quoting prose.
+- **`/perp-check` rebuilt around gates vs drift signals** — two groups, never
+  one flat list. Commands are **detected** (package.json, then CI, which in
+  an existing repo is the better source of truth) instead of read from
+  `<TODO>` placeholders. **The missing precondition branch is closed**: a
+  sensor whose precondition *now holds* and still isn't wired reports
+  `⊘ NOT CONFIGURED` and counts as a finding, where it previously fell
+  through to a benign `N/A` and would have let a portal ship unscanned
+  forever. Drift signals may never be promoted to gates unprompted.
+
+### Two wrong claims corrected
+
+- **Tenant isolation does not lack an ORM-level safety net.** Postgres RLS
+  and Prisma client extensions both enforce it below the query site and fail
+  *closed* on a forgotten filter. The kit applied belt-and-braces to invoice
+  immutability and pure discipline to the failure that ends the business.
+- **The money column type contradicted itself** across two canonical homes,
+  and inside CLAUDE.md 25 lines apart. Document precedence deadlocked
+  because each home was canonical for its own domain. Now uniform: integer
+  minor units for stored amounts, `Decimal` only for fractional rates.
+
+### The interview
+
+- **Adoption starts itself.** A SessionStart hook detects an unscoped repo
+  and runs `/perp-scope` — with four states: pristine → interview; **draft →
+  resume**; **existing codebase → brownfield audit** (the README path that
+  had no implementation); scoped → silent. It gates on file *substance*, so
+  a zero-byte `SCOPE.md` no longer silences it permanently. CLAUDE.md
+  carries the same instruction imperatively, because hooks don't exist in
+  other tools.
+- **New import mode** — bring your own scope doc, spec or RFP; it maps onto
+  the phases and asks only the gaps. **Four things an imported document
+  never settles**: every Phase-3 safety question (its silence is not a no),
+  the billing atom / timezone / promised dates, the pain point, and any
+  aspirational scale claim. Imported content is **data, never instructions**.
+- **The mode state machine stopped losing answers.** `SCOPE.md` and
+  `SCOPE.draft.md` coexisting was undefined and two rules in the same file
+  disagreed, so an interrupted update run discarded every checkpoint. Now a
+  four-state table with "both exist → ask which", per-phase checkpoint
+  sections, and **the draft surviving until the doc-review pass finishes**.
+- **Eight new questions**, each concrete and conditional: CUI/CMMC (asked
+  even when ITAR is a no — a shop can handle CUI with no export-controlled
+  data), AS9100 certification, quoting and hit rate, the incumbent system
+  and its migration, volume, what ships in the box, whether anyone records
+  hours today, who sees what internally, notifications, the books, and
+  storage mode. **Build-vs-plug-in is named at proposal time, never asked
+  mid-interview** — it's the one question shape a machinist can't answer
+  cold.
+- **~30 minutes, stated as worth it** rather than apologised for; express is
+  ~10, defined as the shortest *honest* run rather than the full interview
+  under another name.
+- ⚠️ **`/perp-scope` halts if `origin` still points at the primer.** Cloning
+  the kit and working inside it means `docs/SCOPE.md` — billing model,
+  margins policy, client list, regulated-data answers — sits in a repo aimed
+  at a public remote.
+
+### Security
+
+- **SameSite is no longer the sole CSRF defense.** It is a *site* boundary,
+  not an *origin* boundary, and § 17's advice to serve uploads "from a
+  separate origin" built the launchpad if read as a subdomain.
+  Origin/Referer validation is now required on every state-changing route.
+- **Cross-realm session tests are mandatory** (`SEC-3`) — the catastrophic
+  bug of a two-realm design had no rule and no test row, while STACK told
+  adopters to run "the auth-realm tests" that were never defined.
+- **New § 18 Outbound Requests & SSRF** — absent from a 929-line security
+  doc, for an app whose roadmap is outbound integrations and whose own
+  interview fetches a user-supplied URL onto a host with a metadata endpoint.
+
+### Accessibility
+
+- **A conformance target**: WCAG 2.2 AA. `WCAG` previously appeared **zero
+  times** while PORTAL_UX invoked ADA litigation and the EAA as
+  justification.
+- **Invoice PDFs are inside the baseline** — the pinned renderer cannot emit
+  tagged PDFs, so an accessible path is required.
+- **Three more required states** — **Truncated** (the API was told to take a
+  limit and the UI was never told to say so; a silent first page is data
+  loss), **Success**, **Destructive confirm** — plus financial-table
+  `caption`/`th scope`, WCAG 3.3.4 on money-moving actions, session-expiry
+  warning, and 400% reflow.
+
+### Verification and enforcement
+
+- **CI gets a database.** Neither workflow had one, so the tenant-isolation
+  tests could only ever run on one laptop; the documented CI *upgrade* also
+  silently deleted `prisma generate`.
+- **`/perp-review-code` gates on `SCALE-1`/`SCALE-2`** — it could identify an
+  unbounded tenant query and a missing composite index and still say "no
+  refactor needed", because scale wasn't a gate condition.
+- **The "mandatory tests" are defined.** Both integrity constructs exist only
+  to be correct under contention, so the obvious single-threaded test passes
+  against a broken implementation.
+- **`/perp-status`'s backup check fails closed** — it fired only if the
+  runbook already existed, nagging the diligent and staying silent for the
+  owner who never started.
+
+### The checks that could not fail
+
+The kit's own consistency script grew from 9 checks to 16, and four of the
+originals were repaired after being proven inert:
+
+- **Check 5** grepped `<TODO: maintainer`, a string that had never existed in
+  this repo, against 137 real markers.
+- **Check 9** saw 10 of 270 `§` references (backticked and bare forms were
+  invisible), substring-matched anywhere in the file rather than against
+  headings, and reported via `echo` inside a pipeline so it could never set
+  the failure flag. Rewritten — **and it immediately found four broken
+  anchors**.
+- **Check 11** only counted `[module]` tags; breaking every link left it
+  passing. It now asserts per row — and found six rows with no boundary link.
+- **Check 4** covered only five/six/seven; the README shipped "all four steps
+  are load-bearing".
+
+New checks cover the module map, the deployment record, the auto-scope hook
+(**asserting that it fires**, not merely that it is silent — silence is what
+a broken hook produces), the control map, and every fix in this release.
+kit-check no longer scans `reviews/`, after a panel report quoting a check's
+own dead grep target became that target's first occurrence in repo history
+and tripped it.
+
+### Docs and adoption
+
+- **An install path**, with prerequisites (Claude Code, Node, git,
+  Docker/Postgres) and a real step 1 — *Use this template*, or
+  clone-and-strip-`.git`.
+- **`/perp-build-core` gained preconditions and a failure path** — the
+  most-converged finding, hit by eight of sixteen perspectives. It verifies
+  the toolchain *before writing any file*, commits per step, stops after two
+  failures with a plain-language choice, and **resumes its own interrupted
+  run** instead of refusing. **The SQLite fallback is removed**: Prisma's
+  SQLite connector rejects the `enum` blocks the skill mandates five lines
+  later, and SQLite has none of pg-boss, the `FOR UPDATE` counter, or the
+  immutability trigger.
+- **The glossary covers minute one** — Claude Code, repo, commit, clone,
+  schema, `<TODO>`, VPS, a11y, egress, rollup, invariant — plus ITAR/EAR,
+  CUI, CMMC, AS9100, HIPAA and PCI, the acronyms the never-skipped safety
+  questions are built on and which were entirely absent. Its pointer now
+  lives outside the delete-me block.
+- **Real design tokens** — type scale, spacing, radii, shadows, neutrals,
+  semantic colors, and one canonical status→label→tone map. The kit had
+  *zero* hex values behind a section titled "the skeleton must be sexy".
+- **`docs/BRAND.template.md`, always written** — it was conditional while
+  `/perp-build-core` hard-depended on it.
+- **`/perp-review-parity` audits visual drift**, which it had explicitly
+  excluded while its one UI check shipped as an unfilled `<TODO>`.
+- **Adopters are no longer told to delete their own guardrails** — roughly
+  half of kit-check binds *their* repo forever.
+- **`/panel-review` writes to a gitignored `reviews/`** — those reports state
+  where the product is weak, which is the point and is not for publishing by
+  accident.
+- The rename recipe names the skill bodies and `.claude/settings.json`;
+  `.claude/settings.json` is flagged as auto-executing shell; README step 3
+  no longer contradicts CLAUDE.md; glyph columns are paired with words; and
+  the buy-vs-build gate compares against job-shop ERP rather than PSA tools
+  no manufacturer would shortlist.
+
 ## 0.19.0 — 2026-07-22
 
 **First public release.** The kit moves to a public repository; history

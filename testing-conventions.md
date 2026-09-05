@@ -107,3 +107,31 @@ in one place (e.g., `<TODO: path to your test helpers>`):
 - The same tests that pass locally must run in CI on every PR and push (not just nightly or manual).
 - The test step must be able to fail the build (no `continue-on-error: true` or `|| true`).
 - If unit and E2E coverage are merged, the merge step is part of the pipeline, not a local-only convenience.
+
+## Integrity constructs are tested concurrently (MONEY-4)
+
+`CLAUDE.md` and `docs/STACK.md` both call the raw-SQL integrity constructs
+"mandatory tests". This is what that means, because a test written the
+obvious way passes without proving anything.
+
+Both constructs exist **only** to be correct under concurrency, so a
+single-threaded test — "generate an invoice, assert 1; generate another,
+assert 2" — passes trivially against a completely broken implementation.
+That is exactly the test an LLM writes when told "add a test for the invoice
+counter", so state the requirement explicitly:
+
+- **Gap-free numbering under contention.** Open two overlapping
+  transactions and have both request a number. Assert the results are
+  distinct, sequential, and gap-free. A `MAX()+1` implementation fails this
+  and passes the naive version.
+- **Immutability at the database, not just the app.** Attempt a direct
+  `UPDATE` of a financial column on a non-draft invoice **bypassing the
+  ORM hook** — the Postgres trigger must reject it. A test that goes
+  through the app layer only proves the app layer.
+- **Status transitions still work.** The same trigger must permit
+  `sent → paid` and the `paidAt` write, or you have made invoices immutable
+  in a way that breaks collections.
+
+`/perp-review-testing` treats the absence of these as a finding, and
+`/perp-setup-testing` scaffolds them as failing stubs so the gap is visible
+from day one rather than discovered by a duplicate invoice number.

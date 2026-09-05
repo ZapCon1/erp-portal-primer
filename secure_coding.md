@@ -30,6 +30,7 @@ security vulnerabilities, not style preferences.
 15. [Testing Requirements](#15-testing-requirements)
 16. [Webhooks & Inbound Integrations](#16-webhooks--inbound-integrations) *(required if you take online payments)*
 17. [File Uploads & Storage](#17-file-uploads--storage) *(required if customers exchange documents)*
+18. [Outbound Requests & SSRF](#18-outbound-requests--ssrf) *(required once any URL comes from a user or a tenant setting)*
 
 > If you delete a section during pruning, update this table of contents in
 > the same edit — later `§ n` references assume the numbering above.
@@ -138,13 +139,26 @@ if (resource.createdById !== user.id && !user.has("notes.edit_all")) {
 }
 ```
 
-### Tenant isolation has NO ORM-level safety net
+### Tenant isolation — turn the safety net on (TENANT-1)
 
 If your data model is multi-tenant, every tenant-scoped query MUST include
-the tenant filter. Forgetting it returns data from all tenants. There is no
-generic ORM feature that catches this — it is enforced by the auth-wrapper
-pattern, code review, tests, and the recurring `/perp-review-parity` audit
-(this is the same rule as DOMAIN_MODEL.md invariant 1).
+the tenant filter. Forgetting it returns data from all tenants.
+
+**The ORM does not do this for you by default — but a mechanism exists, and
+you should turn it on.** On the pinned Postgres stack, **row-level security**
+with a transaction-scoped `SET LOCAL` tenant id enforces the filter below the
+query site (the application role must not hold `BYPASSRLS`). At the app layer,
+a **Prisma client extension** can require a tenant argument on every scoped
+model. Both fail *closed* on the filter someone forgot; discipline fails open.
+
+The auth-wrapper pattern, code review, tenant-isolation tests, and the
+recurring `/perp-review-parity` audit are the layers **on top of** that
+mechanism, not a substitute for it. This kit already applies belt-and-braces
+to invoice immutability (an app-level hook *and* a database trigger) — the
+failure that ends the business deserves at least as much.
+
+(Same rule as DOMAIN_MODEL.md invariant 1; `docs/CONTROLS.md` tracks what
+enforces it today.)
 
 ```typescript
 // CORRECT — tenant in the query
@@ -656,11 +670,28 @@ exception.
 
 ### Primary defense
 
-The `sameSite` attribute on the session cookie (per-realm rule in § 8)
-prevents browsers from sending session cookies on cross-site requests.
-Both `strict` and `lax` withhold the cookie on cross-site POSTs — the
-CSRF case that matters. This is the main defense for cookie-authenticated
-endpoints.
+The `sameSite` attribute on the session cookie (per-realm rule in § 8) is
+the **first** layer: both `strict` and `lax` withhold the cookie on
+cross-site POSTs.
+
+⚠️ **It must not be your only layer, because SameSite is a *site* boundary,
+not an *origin* boundary.** Anything an attacker can place on a sibling
+subdomain — `files.yourshop.com`, a marketing site, a forgotten staging
+host, a takeover-able CNAME — is *same-site*, and its requests carry your
+staff or portal session cookie in full. Note that § 17 recommends serving
+uploads "from a separate origin": if you read that as a subdomain, you have
+just built the launchpad. **It must be a different registrable domain.**
+
+**Second layer, required on every state-changing route: Origin/Referer
+validation.** Reject the request when `Origin` is absent on an unsafe method
+or is not in your allowlist. It is one wrapper, stack-agnostic, and it
+survives the subdomain case that SameSite does not. Route handlers are the
+one mutation door (`CLAUDE.md` § Tech Stack), so this lands in exactly one
+place.
+
+For the payment and invoice routes, add synchronizer tokens on top. The
+current industry position is that SameSite is defense-in-depth, not a
+standalone mitigation — treat it that way.
 
 ### When you need explicit tokens
 
@@ -815,7 +846,22 @@ For multi-tenant routes, also:
 
 | Test | Verifies |
 |---|---|
-| `should return 404 when resource belongs to a different tenant` | Tenant isolation |
+| `should return 404 when resource belongs to a different tenant` | Tenant isolation (`TENANT-1`) |
+
+**For a two-realm app, these two are mandatory and are not optional
+extras** (`SEC-3`). Cross-realm session confusion is the catastrophic bug of
+this design: if a staff wrapper accepts a portal session, every customer is
+staff across every tenant — silently, with no error and no log.
+
+| Test | Verifies |
+|---|---|
+| `should return 401 when a portal session is presented to a staff route` | Realm isolation, portal → staff |
+| `should return 401 when a staff session is presented to a portal route` | Realm isolation, staff → portal |
+
+The rejection must come from **signature verification failing** — separate
+signing secrets per realm — not from comparing a cookie name. A name check
+passes the moment someone renames a cookie. `docs/STACK.md` tells you to
+"run the auth-realm tests" after a Better Auth upgrade; these are them.
 
 ### Pre-fix test pattern
 
@@ -913,9 +959,12 @@ followed by a crash loses the event forever — the provider won't retry.
 ### Serve downloads safely
 
 - Serve user-uploaded content with `Content-Disposition: attachment` and
-  `X-Content-Type-Options: nosniff`, ideally from a separate origin or via
-  short-lived signed URLs — an uploaded HTML/SVG file served inline from
-  the app origin is stored XSS into staff sessions.
+  `X-Content-Type-Options: nosniff`, ideally from a **separate registrable
+  domain** (not a subdomain) or via short-lived signed URLs — an uploaded
+  HTML/SVG file served inline from the app origin is stored XSS into staff
+  sessions. ⚠️ **A subdomain is same-site**, so it still receives your
+  session cookies: serving uploads from `files.yourshop.com` fixes the XSS
+  origin problem and hands back a CSRF launchpad (§ 11).
 - **Every download route is tenant-scoped**: verify the file's
   `clientId` against the session before issuing bytes or a signed URL.
   Cross-tenant file access returns 404 (§ 3/§ 4 rules apply to files too).
@@ -927,3 +976,39 @@ that with an explicit visibility flag/ACL checked in the query — never by
 "customers only get links to their folder." Regulated-data flags
 (ITAR etc., see CLAUDE.md) must gate file visibility and exports, and
 access to flagged files is audit-logged (§ 7).
+
+---
+
+## 18. Outbound Requests & SSRF
+
+*(Required as soon as any URL originates from a user, a tenant setting, or
+an uploaded document — which for this app means: the logo fetch in
+`/perp-scope`, customer-supplied links, "your webhook URL" and "your storage
+endpoint" in Settings, and every integration in `docs/MODULES.md`.)*
+
+The app runs on a host with a cloud **instance-metadata endpoint** reachable
+at a link-local address. A request the server makes on a user's behalf runs
+*inside* your network, so "fetch this URL" is credential exfiltration for
+the whole cloud account unless it is constrained.
+
+**Rules for any server-side fetch of a URL you did not hard-code:**
+
+- **Allowlist the scheme** — `https:` only. No `file:`, `gopher:`, `ftp:`,
+  no `data:`.
+- **Resolve the hostname, then check the resolved IP** against private,
+  loopback, link-local, and cloud-metadata ranges — and **re-check after
+  every redirect**. Validating the string before resolution is defeated by
+  DNS that answers with a private address.
+- **Cap redirects** and set a short timeout. An unbounded fetch is also a
+  denial-of-service on your own worker.
+- **Never forward credentials** — no cookies, no `Authorization`, no cloud
+  SDK signing — on a fetch to a user-supplied host.
+- **Prefer an egress allowlist** where the destination is knowable: an
+  integration talks to one vendor's API, so pin it rather than validating
+  arbitrary input.
+- **Treat the response as untrusted input**, cap its size, and never render
+  it into a page or a prompt without the § 5 treatment.
+
+For export-controlled or CUI data the rule is stronger and lives in
+`docs/MODULES.md` § The shared scaffold: the destination must be declared
+via `mayReceiveControlledData`, which defaults to false.

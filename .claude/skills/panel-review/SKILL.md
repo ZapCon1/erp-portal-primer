@@ -1,6 +1,6 @@
 ---
 name: panel-review
-description: Multi-perspective product review of a feature, flow, or surface — evaluates it from 16 stakeholder perspectives (new user, non-technical user, power user, prospective customer, investor, business owner, support, sales, competitor, QA, security, accessibility, performance, ops, designer, future maintainer) across two axes at once: UX/UI surface AND feature-set depth/correctness. Spawns one subagent per perspective in parallel, then synthesizes a prioritized report saved under docs/reviews/. Use this whenever the user wants a product or UX review, a feature audit, a "review this from different perspectives" pass, a quality/depth check on a shipped feature, a pre-ship blind-spot sweep, or asks why something good isn't surfacing — especially the correctness gaps (timezones, phantom integrations, claimed-but-absent functionality) that surface-level reviews miss. This is NOT line-level code-diff review — for reviewing a working diff/PR use /code-review instead.
+description: Multi-perspective product review of a feature, flow, or surface — evaluates it from 16 stakeholder perspectives (new user, non-technical user, power user, prospective customer, investor, business owner, support, sales, competitor, QA, security, accessibility, performance, ops, designer, future maintainer) across two axes at once: UX/UI surface AND feature-set depth/correctness. Spawns one subagent per perspective in parallel, then synthesizes a prioritized report saved under reviews/ (gitignored by default). Use this whenever the user wants a product or UX review, a feature audit, a "review this from different perspectives" pass, a quality/depth check on a shipped feature, a pre-ship blind-spot sweep, or asks why something good isn't surfacing — especially the correctness gaps (timezones, phantom integrations, claimed-but-absent functionality) that surface-level reviews miss. This is NOT line-level code-diff review — for reviewing a working diff/PR use /code-review instead.
 ---
 
 # Panel Review
@@ -104,7 +104,9 @@ Confirmed = traced in code or reproduced. Suspected = plausible but unverified �
 
 ### 6. Write the report
 
-Save to `docs/reviews/panel-review-<scope-slug>-<YYYY-MM-DD>.md` (create `docs/reviews/` if absent; if the project has no `docs/`, put it at repo root under `reviews/`). Don't reuse the date alone — include the scope slug so runs don't clobber. Use this structure:
+Save to `reviews/panel-review-<scope-slug>-<YYYY-MM-DD>.md` at the repo root (create `reviews/` if absent). Don't reuse the date alone — include the scope slug so runs don't clobber.
+
+**`reviews/` is gitignored by default, and that default is deliberate.** A panel report says, in writing, where the product is weak — the competitor's angle, the security gaps, the features that are claimed but absent. That is exactly the candor the skill is for, and exactly what nobody wants to publish by accident. Keep it local, act on it, and let the fixes be what reaches the repo. A team that would rather keep reviews as shared decision records can drop the `reviews/` line from `.gitignore` — but make that a deliberate choice, not a default, and re-read the report once with "who can see this?" in mind before the first commit.
 
 ```markdown
 # Panel Review — <scope> (<date>)
@@ -141,5 +143,5 @@ Then give the user a tight spoken summary: the verdict, the 3 highest-leverage f
 Match the panel to the ask. "Quick gut-check on this page" → run the 6–8 most relevant perspectives, single round, confirmed-only. "Audit this before we ship / be thorough" → all 16, plus a skeptic pass that tries to *refute* each critical finding before it ships in the report (kill the ones that don't survive — a review that cries wolf gets ignored). Tell the user which mode you ran.
 
 ## See also
-- `references/perspectives.md` — the full brief for each of the 16 perspectives (what to probe on each axis, what a good finding looks like). Each spawned agent should read its own section.
+- `references/perspectives.md` — the full brief for each perspective (what to probe on each axis, what a good finding looks like). Each spawned agent should read its own section.
 - For line-level review of a working diff, use `/code-review`. This skill is for product/feature/UX depth, not diff correctness.

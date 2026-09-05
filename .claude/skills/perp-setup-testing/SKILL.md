@@ -188,12 +188,39 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npx prisma generate   # codegen BEFORE typecheck (default stack requires it;
                                    # delete only if your stack has no codegen)
+      - run: npx prisma migrate deploy    # the tests need a real schema
+        env: { DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test }
       - run: npm run typecheck
       - run: npm run test:coverage
+        env: { DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test }
       - run: npm run build
       # - run: npx pa11y-ci               # accessibility — enable when the first
-      #                                   # portal view ships (/perp-check step 6)
+      #                                   # portal view ships (/perp-check a11y gate)
 ```
+
+**CI needs a database, and this is not optional.** `CLAUDE.md` § Testing
+makes tenant isolation a test *category* — every portal route test asserts a
+cross-tenant request returns 404 — and those tests need Postgres. Without a
+service block, CI green means "the tests that don't touch the database
+passed", which is the most expensive kind of false comfort: the kit's most
+important security tests would only ever run on one laptop. Add to the job,
+above `steps:`:
+
+```yaml
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+```
+
+(Throwaway credentials for an ephemeral container — never reuse them
+anywhere, and never point CI at a real database.)
 
 The test step must be able to fail the build. If a workflow file
 already exists, **don't overwrite it** — tell the user what change

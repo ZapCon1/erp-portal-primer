@@ -3,6 +3,35 @@
 One line each, for the non-engineer reading these docs. Terms appear
 throughout the primer without further explanation.
 
+**Before the domain terms — the words you meet in the first five minutes:**
+
+- **Claude Code** — Anthropic's AI coding assistant. It runs in a terminal window on your computer, reads the files in your project, and writes code. Paid subscription. This kit is a set of instruction files it reads.
+- **Repo (repository)** — the folder holding your project, tracked by git so every change is recorded and reversible.
+- **Commit / push** — *commit* saves a snapshot of your changes locally; *push* uploads them to a shared copy (e.g. GitHub). They are separate on purpose: committing is private, pushing is publishing.
+- **Clone / fork** — *clone* copies someone's repository to your machine; *fork* makes your own copy on GitHub. Neither is how you adopt this kit — see README adoption step 1.
+- **Terminal** — the text window where you type commands and Claude Code runs.
+- **Skill / slash command** — a `/name` command you type in the chat that runs a pre-written playbook, like `/perp-scope`.
+- **`<TODO>`** — a placeholder in these docs marking something only you can answer. Not all of them are yours to fill on day one; ask Claude which ones still need you.
+- **Env var (environment variable)** — a setting passed to the app at run time rather than written in the code. Where secrets live.
+- **Schema** — the shape of your database: which tables exist and what columns they have. "Schema-shaped decision" means changing it later requires migrating live data.
+- **Prune** — delete the parts of this kit you don't need, on purpose, rather than carrying dead rules forward.
+- **VPS (virtual private server)** — a rented Linux computer in a data centre. The kit's default place to run the app; you own patching it.
+- **a11y** — shorthand for *accessibility* (a, then 11 letters, then y).
+- **Egress** — data leaving your network. The "egress trap" is about which outside services your files reach.
+- **Rollup** — a number computed by adding up other rows (a project's total hours). Storing one creates a second source of truth, which is why the kit is strict about them.
+- **Invariant** — a rule that must always hold, no matter what. The money rules in DOMAIN_MODEL are invariants.
+
+**The regulatory acronyms** — Phase 3 of `/perp-scope` asks about these, and a wrong answer has legal consequences rather than just architectural ones:
+
+- **ITAR / EAR** — US rules covering defense and export-restricted technical data. If a customer's drawings are covered, *who may see the file* and *where it may be stored* are legally constrained, not preferences. Defense subcontractors often qualify without realising.
+- **CUI (controlled unclassified information)** — government information that isn't classified but must still be protected. Comes with contract clauses about how you store and handle it.
+- **CMMC** — the US Department of Defense certification that proves you handle CUI properly. Affects access control, audit logs, encryption, and possibly where the system may run.
+- **AS9100 / ISO 9001** — quality-management certifications (AS9100 is the aerospace one). They require controlled documents, records of what you inspected, and traceability.
+- **HIPAA** — US rules for health information.
+- **PCI** — the card-industry rules that apply if *you* store card numbers. The kit's answer is: don't — let a payment provider hold them.
+
+**Domain terms:**
+
 - **ERP** — the software that runs the business's operations: customers, jobs, hours, invoices, payments, in one system of record.
 - **Tenant / multi-tenant** — one customer company's walled-off slice of the data. You are multi-tenant if more than one customer company will ever log into the portal. In this primer, **tenant = Client**.
 - **POC** — point of contact: a person at a client company who can log into the portal.
@@ -57,5 +86,5 @@ throughout the primer without further explanation.
 - **Presigned URL** — a temporary, expiring link that lets a browser fetch one file directly from storage without the file passing through the app server.
 - **WASM (WebAssembly)** — a way to run heavyweight native code (like the OpenCascade CAD engine) inside JavaScript environments.
 - **TOTP / MFA** — the six-digit authenticator-app code (TOTP) used as a second login factor (MFA) for staff accounts.
-- **Monorepo** — one repository holding several packages/apps at once; changes detection and setup steps.
+- **Monorepo** — one repository holding several packages or apps at once. It complicates tooling: every setup step has to say *which* package it applies to, and CI has to work out which packages a change actually affects.
 - **UTC / DST** — UTC: the universal reference clock all timestamps are stored in. DST: the daylight-saving jumps that make local clocks shift — the reason "what day is it" needs one declared timezone.
