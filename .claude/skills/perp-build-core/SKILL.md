@@ -67,8 +67,9 @@ scoping decision was already made in the interview; do not re-ask.
    strict + Prisma + Postgres, per STACK.md's pinned conventions:
    `(app)/` + `portal/` route groups, shared `lib/`, `import
    'server-only'` on DB modules, route handlers as the one mutation
-   door). SQLite is acceptable for the dev DB only if Postgres isn't
-   available locally — note it for later.
+   door). **Postgres, always** — the preconditions above already
+   established one is reachable, and the integrity constructs the schema
+   step depends on do not exist anywhere else.
 2. **Schema**: Client, User, ClientPoc, CompanySettings, and the spine
    in the shop's vocabulary (Project/Job, Phase, Task, plus the
    pain-point entity — e.g. Quote/Estimate — as SCOPE.md names them),

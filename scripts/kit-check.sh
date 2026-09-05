@@ -277,6 +277,11 @@ grep -qi 'ITAR / EAR' docs/GLOSSARY.md || err "GLOSSARY lost the regulatory acro
 # The interview's mode table is what stops an interrupted run losing every answer.
 grep -qi 'ask which' .claude/skills/perp-scope/SKILL.md || err "perp-scope lost the SCOPE.md + draft precedence rule"
 grep -q 'git remote get-url origin' .claude/skills/perp-scope/SKILL.md || err "perp-scope lost the clone-vs-copy origin guard (SCOPE.md holds margins and client lists)"
+# Found by actually running the flow: the new precondition was added while the
+# old fallback sentence stayed in the build list, so the skill said both.
+grep -qi 'SQLite is acceptable' .claude/skills/perp-build-core/SKILL.md && err "/perp-build-core still offers the SQLite fallback its own preconditions forbid"
+grep -qi 'Postgres is required, not preferred' .claude/skills/perp-build-core/SKILL.md || err "/perp-build-core lost the Postgres precondition"
+grep -qiE 'node --version|node -v' .claude/skills/perp-build-core/SKILL.md || err "/perp-build-core lost the toolchain precondition check"
 
 echo "exit: $fail"
 exit $fail
