@@ -187,7 +187,9 @@ jobs:
       # transitive advisory doesn't block every PR.
       - run: npm audit --omit=dev --audit-level=high
       - run: npx prisma generate   # codegen BEFORE typecheck (default stack requires it;
-                                   # delete only if your stack has no codegen)
+                                   # delete only if your stack has no codegen).
+                                   # Pin prisma exactly in package.json — a major
+                                   # bump can remove this command outright.
       - run: npx prisma migrate deploy    # the tests need a real schema
         env: { DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test }
       - run: npm run typecheck

@@ -175,6 +175,14 @@ surface that doesn't exist.
 
 ## Mobile
 
+⚠️ **The side nav must collapse below ~640px.** Found by screenshotting a
+real generated portal at 390px: the sidebar kept its full width, so nav
+labels wrapped to three lines and the content column was squeezed. It
+technically reflowed — no horizontal scroll — and it was still unusable.
+A shop tablet and a customer's phone are the portal's stated devices, so
+this is a defect, not a polish item: collapse to a top bar or a disclosure
+button, and keep the tap targets at 44px.
+
 Portal read views (dashboard, project status, invoice) must work on a
 phone — customers check invoices from email, and email is read on phones.
 Internal-app density is fine on desktop; the portal is not the internal app.

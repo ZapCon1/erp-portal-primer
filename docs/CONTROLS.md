@@ -53,6 +53,10 @@ that aren't installed.
 | Migration one-shot exit 0 | `OPS-2` | deploy | **yes** |
 | Integrity construct tests | `MONEY-4` | CI | **yes** |
 | Accessibility scan | `A11Y-1` | CI, once a portal view exists | **yes** *(once live)* |
+| Controlled-file egress gate | `CUI-1` | every outbound call, CI | **yes** *(once any file is flagged)* |
+| Released-revision immutability | `DOC-1` | DB + app, CI | **yes** *(once doc control ships)* |
+| Approval-before-release | `DOC-2` | app, CI | **yes** *(once doc control ships)* |
+| Flagged-file access audit | `CUI-2` | every file read, CI | **yes** *(once any file is flagged)* |
 | Coverage | `TEST-2` | CI, reported | no — drift signal |
 | Complexity / file size | `STRUCT-1` | reported | no — drift signal |
 | `/perp-review-parity` | `PARITY-*` | before every release | no — inferential |
@@ -74,6 +78,13 @@ candidate for promotion, and `/perp-check` reports the honest gap.
 | `AUDIT-1` money mutations write an audit entry | review | Partly — a test per mutation route |
 | `A11Y-1` portal a11y baseline | a scan that isn't wired until a portal ships | Yes, and the wiring is the gate |
 | `OPS-1` runbooks filled before go-live | a checklist | Yes — a check for `<TODO>` in `docs/runbooks/*.md` |
+| `DOC-3` superseded revisions retained, never deleted | prose | Yes — a test asserting delete is refused |
+| `DOC-4` printed controlled docs stamped "uncontrolled when printed" | prose | Yes — assert the stamp in the render test |
+| `DOC-5` the app owns the rev letter, not the storage service | prose | Partly — a test that an out-of-band file change does not advance a revision |
+| `QUAL-1` scrap + rework + shipped reconcile against qty ordered | prose | **Yes, and it is a money rule** — one arithmetic identity, testable |
+| `CUI-3` audit records retained for the contracted period | prose | Yes — a retention setting plus a check that it is set |
+| `CUI-4` MFA on privileged access | go-live checklist | Yes, once real login lands |
+| `CUI-5` delete sanitizes rather than soft-deletes flagged data | prose | Yes — a test that the row and the object are gone |
 
 ⚠️ **On `TENANT-1` specifically.** Earlier versions of this kit asserted that
 no ORM-level safety net exists for tenant isolation. That is not true on the
@@ -84,6 +95,52 @@ app-level hook *and* a database trigger) — the failure that ends the business
 deserves at least as much. Treat discipline, tests, and
 `/perp-review-parity` as the layers *on top of* a mechanism, not as the
 mechanism.
+
+---
+
+## Compliance controls (AS9100 · ITAR/EAR · CMMC)
+
+Two regimes, three questions each, and the same answer shape: **who may see
+this, may it leave, what do we keep.** Neither is a module —
+`docs/MODULES.md` § Compliance posture explains why — but both need
+*controls*, not paragraphs.
+
+### The one field everything hangs off
+
+`File.classification` — `unrestricted` · `export-controlled` · `cui` —
+checked in **one** predicate, honored by every module and every integration.
+Provision it in the first migration; retrofitting a classification onto live
+files means classifying them by hand, from memory.
+
+### AS9100 document control
+
+| Rule | What must enforce it |
+|---|---|
+| `DOC-1` A released revision is immutable | The same belt-and-braces as invoices: app-level hook **and** a DB constraint. Editing a released rev in place is how a controlled document quietly becomes uncontrolled. |
+| `DOC-2` Release requires every named approval | Blocked in the state machine, tested. `draft → in-review → released` cannot skip. |
+| `DOC-3` Superseded revisions are retained | Delete is refused, not soft-flagged. An auditor asks for rev B after rev C shipped. |
+| `DOC-4` Prints are stamped and logged | Render asserts rev + timestamp + "uncontrolled when printed". |
+| `DOC-5` The app owns the rev letter | If files live in Box/Dropbox/SharePoint, their native version history is **not** the record (`docs/MODULES.md` § File storage). |
+| `QUAL-1` Quantities reconcile | ordered = shipped + scrapped + reworked-out. A drift here bills a customer for parts they never got — a `MONEY-1` failure wearing a quality costume. |
+
+### ITAR/EAR and CMMC/CUI
+
+| Rule | What must enforce it |
+|---|---|
+| `CUI-1` Flagged data never reaches a third party | The integration scaffold's `mayReceiveControlledData`, **default false**, checked at the uploader — not filtered downstream and not left to the operator. This is the single highest-leverage control in the kit: it covers Toolpath, hosted converters, error tracking, email, CDNs and LLM tooling with one predicate. |
+| `CUI-2` Every access to a flagged file is audit-logged | And a presigned URL is a **bearer credential the object store serves without telling your app** — so flagged files are proxied through the app, or issued single-use URLs whose *issuance* is the logged event (`docs/STACK.md` § Part viewing). |
+| `CUI-3` Audit records are retained and protected | Retention is a decision, not a default. Write it down and check it is set. |
+| `CUI-4` MFA on privileged access | Lands with real login (`SEC-2`), not after. |
+| `CUI-5` Delete means gone | Sanitization, not a soft-delete flag — the row *and* the stored object. |
+
+⚠️ **The honest limit of all of this.** These controls make compliance
+*achievable*; they do not confer it. You still owe a system security plan, a
+POA&M, evidence, and an assessor conversation — and for CUI in a cloud, a
+hosting decision that may be constrained
+(`docs/DEPLOYMENT_TARGETS.md` § AWS GovCloud). **A kit cannot certify you.**
+What it can do is make sure the expensive, retrofit-hostile pieces — the
+classification field, the egress gate, the audit trail — exist from the
+first migration rather than being discovered at audit.
 
 ---
 
@@ -135,6 +192,13 @@ and a gate that disappears when a checklist is tidied away was never a gate.**
 - [ ] `SEC-3` Cross-realm rejection tested both directions (a portal session
       presented to a staff route returns 401, and vice versa).
 - [ ] `TENANT-1` mechanism in place, not just discipline.
+- [ ] `CUI-1` Egress gate live and defaulting to false, **if any file is
+      flagged** — verified by trying to send a flagged file to an
+      integration and watching it be refused.
+- [ ] `CUI-2` Access to flagged files is audit-logged, including the
+      presigned-URL issuance path.
+- [ ] `DOC-1`/`DOC-2` If AS9100 is claimed: released revisions immutable,
+      release blocked without approvals, supersessions retained.
 - [ ] `OPS-1` Backup scheduled **and one restore rehearsed**, with the date
       recorded.
 - [ ] `OPS-3` Error tracking and an uptime check wired, with one alert

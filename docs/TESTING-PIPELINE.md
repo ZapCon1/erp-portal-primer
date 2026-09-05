@@ -517,7 +517,7 @@ test('portal invoices page has no a11y violations', async ({ page }) => {
 And at least one **keyboard-only golden path** (log in → open an invoice
 → download it, driven entirely by `page.keyboard`) — see
 `docs/PORTAL_UX.md` for the baseline these enforce. When the first
-portal view ships, this is also the moment to fill `/perp-check` step 6
+portal view ships, this is also the moment to fill `/perp-check`'s accessibility gate
 and enable the a11y step in CI (Bootstrap checklist § Before go-live).
 
 ### Next.js / webpack projects

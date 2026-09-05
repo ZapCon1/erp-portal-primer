@@ -283,5 +283,22 @@ grep -qi 'SQLite is acceptable' .claude/skills/perp-build-core/SKILL.md && err "
 grep -qi 'Postgres is required, not preferred' .claude/skills/perp-build-core/SKILL.md || err "/perp-build-core lost the Postgres precondition"
 grep -qiE 'node --version|node -v' .claude/skills/perp-build-core/SKILL.md || err "/perp-build-core lost the toolchain precondition check"
 
+
+echo "17. compliance guardrails are in the control map, not just in prose"
+# Found by audit: AS9100 and CMMC were described across six docs and appeared
+# nowhere in CONTROLS.md — the one file that answers "what enforces this?".
+for id in DOC-1 DOC-2 DOC-3 CUI-1 CUI-2 QUAL-1; do
+  grep -q "$id" docs/CONTROLS.md || err "CONTROLS.md lost compliance rule $id"
+done
+grep -qi 'Compliance controls' docs/CONTROLS.md || err "CONTROLS.md lost its compliance section"
+grep -qi 'classification' docs/CONTROLS.md || err "CONTROLS.md lost the one data-classification field everything hangs off"
+# The egress gate is the highest-leverage control in the kit; it must default false.
+grep -qi 'default false' docs/CONTROLS.md || err "CUI-1 no longer states that the egress gate defaults to false"
+grep -q 'mayReceiveControlledData' docs/MODULES.md || err "the egress gate field vanished from MODULES.md"
+# Toolpath facts were verified against the live spec — keep them honest.
+grep -qi 'millimetres' docs/MODULES.md || err "MODULES.md lost the Toolpath mm/degrees unit warning (a 25.4x error in a number that feeds a price)"
+grep -qi 'server-sent event' docs/MODULES.md || err "MODULES.md reverted to polling; the API offers an SSE stream"
+grep -qi 'Bearer' docs/MODULES.md || err "MODULES.md lost the Toolpath Bearer-auth detail"
+
 echo "exit: $fail"
 exit $fail

@@ -103,7 +103,11 @@ scoping decision was already made in the interview; do not re-ask.
    Two). What stays Phase Two: money math, approvals, generation,
    sending — a quote can be *created* day one; it can't be *accepted
    into a project* yet.
-7. **Helper banners on every screen, both surfaces** — a dismissible
+7. **The side nav collapses on a phone** (`docs/PORTAL_UX.md` § Mobile) —
+   below ~640px it becomes a top bar or a disclosure button. A fixed
+   sidebar at 390px wraps its own labels and squeezes the content column;
+   it passes a reflow check and still fails the user.
+8. **Helper banners on every screen, both surfaces** — a dismissible
    one-liner per view saying what this screen is and the one action to
    try ("This is your quote list — add your first real quote with
    + New Quote"). One shared component (parity), content in the shop's
@@ -111,15 +115,15 @@ scoping decision was already made in the interview; do not re-ask.
    teaches the *owner* how to use the app they're building — and where
    dev-mode ends and real features begin ("Invoices are view-only for
    now — making them real is a next step").
-8. **Portal faces** of everything SCOPE.md § The portal says customers
+9. **Portal faces** of everything SCOPE.md § The portal says customers
    see — same shared `lib/` helpers as the staff views (parity from
    birth), tenant-filtered by `clientId` from the very first query.
-9. **Sample data** — a seed script minting one clearly-fake client
+10. **Sample data** — a seed script minting one clearly-fake client
    ("Sample Manufacturing Co."), a job, a quote, a few tasks — in their
    vocabulary, every record visibly labeled **SAMPLE**. Every screen is
    alive; nothing is a wall of empty states. Provide the one command
    that deletes it all (`npm run sample:reset` or similar).
-10. **Dev-mode sessions — the security spine stays intact**:
+11. **Dev-mode sessions — the security spine stays intact**:
    - **Every route goes through the real auth wrappers from the first
      route** (`withPermission` / `withPortalAuth` per
      `secure_coding.md` § 2-3). Dev mode stubs the *session* behind
@@ -152,9 +156,9 @@ scoping decision was already made in the interview; do not re-ask.
      it needs a permission, a persistent banner naming the client being
      viewed, and an audit entry recording the real actor and the
      assumed `clientId` (`AUDIT-1`) — it is tenant impersonation.
-11. **Verify and run**: typecheck + build must pass (fix, don't ship
+12. **Verify and run**: typecheck + build must pass (fix, don't ship
     broken); start the dev server; hand over the URL.
-12. **Write down what you built.** Fill `CLAUDE.md` § Dev Server (the run
+13. **Write down what you built.** Fill `CLAUDE.md` § Dev Server (the run
     command, the port, the typecheck command) and the § Tech Stack hosting
     line if it was decided, and tick the Bootstrap "confirm the default
     stack" box. Without this, the very next session reads an unfilled

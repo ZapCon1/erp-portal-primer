@@ -50,7 +50,7 @@ the full picture, not stop-at-first-failure.
 | # | Sensor | Default-stack command | Notes |
 |---|---|---|---|
 | 1 | Dependency audit | `npm audit --omit=dev --audit-level=high` | `pip-audit` / `cargo audit` elsewhere |
-| 2 | Codegen | `npx prisma generate` | Runs **before** the type check — generated types must exist first |
+| 2 | Codegen | `npx prisma generate` | Runs **before** the type check — generated types must exist first. **If the command doesn't exist, that is a finding, not a skip**: report `✗ codegen — command not found in the installed CLI` and check the pinned version. A major-version bump can remove or rename it (`docs/STACK.md` § Honest costs). |
 | 3 | Type check | `npm run typecheck` | Same command here, in CI, and in the pre-push hook, so the three can't disagree |
 | 4 | Unit tests | `npm test` | Includes the tenant-isolation tests (`TENANT-1`) |
 | 5 | Build | `npm run build` | |

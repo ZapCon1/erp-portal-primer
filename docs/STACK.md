@@ -30,7 +30,7 @@ Per-concern picks — exactly one library per problem. This table IS the
 | Framework | Next.js, **App Router only** | conventions pinned in CLAUDE.md § Tech Stack — see § Pinned conventions below |
 | Language | TypeScript, strict | the compiler is the hallucination net for AI-assisted work |
 | Database | PostgreSQL | the gold standard at this ceiling |
-| ORM / migrations | Prisma (`prisma migrate`; hand-edited SQL migrations for triggers/constraints the DSL can't express) | see § Integrity below — this is a rule, not a footnote |
+| ORM / migrations | Prisma (`prisma migrate`; hand-edited SQL migrations for triggers/constraints the DSL can't express) | see § Integrity below — this is a rule, not a footnote. **Pin it exactly, like Better Auth: no `^`, lockfile committed.** ⚠️ Verified 2026-09-05: `npm install prisma` installs whatever the **`latest` dist-tag** points at, and that was an **8.0.0 release candidate** with a restructured CLI — no `generate`, no `validate`, no `migrate dev`. That breaks `/perp-check`'s codegen step, the CI template and the deploy runbook simultaneously, and it happens on a clean install with no warning. Run `npm view prisma dist-tags` before pinning and take the newest **stable** (`prev` was 7.10.0 when this was checked). |
 | Validation | Zod at every boundary | pairs with react-hook-form on forms |
 | Staff auth | Better Auth instance #1 — email/password + `twoFactor` (TOTP) | **pin = exact version in package.json (no `^`), lockfile committed**; upgrade only deliberately: read the changelog for session/cookie/plugin changes → bump in a branch → run the auth-realm tests. Conservative fallback: hand-rolled DB sessions (the Lucia sessions guide pattern — lucia-auth.com — ~300 lines, fully owned) |
 | Portal auth | Better Auth instance #2 — `magicLink` plugin | separate cookie names, separate session tables, **and a separate signing secret per realm** (two env vars — never share signing material across realms). Two instances in one app is off the library's happy path: expect per-instance table remapping (e.g. `staff_session` vs `portal_session` via model mapping) and two handler mount paths. If the remapping fights your pinned version, the hand-rolled fallback is the simpler road to two realms |
@@ -212,7 +212,7 @@ Deploy runbook: `docs/runbooks/` (bootstrap checklist schedules it).
 
 ## Honest costs (know them going in)
 
-(a) **The upgrade treadmill is real**: the per-concern table's
+(a) **The upgrade treadmill is real, and it does not wait for you to be ready.** While testing the adoption flow on 2026-09-05 a clean `npm install prisma` pulled an 8.0.0 **release candidate**, because that is where Prisma's `latest` tag pointed — a restructured CLI that breaks three of this kit's own commands at once. Pin every load-bearing library to an exact version and check `dist-tags` before bumping; `latest` is not a promise of stability. More generally: : the per-concern table's
 independently-versioned libraries plus a framework with a documented
 history of breaking transitions (Pages→App Router, async request APIs,
 caching semantics). Budget periodic migration work — it has a row in
