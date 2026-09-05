@@ -58,7 +58,7 @@ live in CLAUDE.md § Tech Stack so Claude reads them every session:
   the wrapper composition, 404-not-403 tenancy, request IDs, Zod
   validation, and same-transaction audit writes all live
   (`secure_coding.md` § 1–7). Server actions are **not used for
-  mutations** until secure_coding.md § maps every one of those rules
+  mutations** until `secure_coding.md` maps every one of those rules
   onto them — a mixed mutation layer, half outside the security
   checklist, is exactly what an AI-assisted codebase drifts into.
 - **`import 'server-only'`** at the top of every module that touches
@@ -197,6 +197,16 @@ push it, which is precisely why the target is pinned:
   answer is no. If your product were portal-light and job-free, managed
   serverless would genuinely win — a custom ERP is nearly the opposite
   of that profile.
+
+**The pin is a shape, not a vendor.** "Never serverless" rejects
+*request-scoped functions* (Lambda, Vercel, Workers) — not managed
+container platforms. ECS Fargate and Azure Container Apps run a normal
+long-running Node process and honor the pin fully; AWS's marketing use
+of "serverless" for Fargate means *no EC2 to patch*, which is a
+different claim. `docs/DEPLOYMENT_TARGETS.md` maps this shape onto every
+substrate worth considering — VPS, PaaS, AWS, **AWS GovCloud**, Azure,
+GCP (where Cloud Run's request-driven model needs care for the worker) —
+plus the CUI/ITAR constraints that can decide the question for you.
 
 Deploy runbook: `docs/runbooks/` (bootstrap checklist schedules it).
 

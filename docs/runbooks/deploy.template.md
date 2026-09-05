@@ -29,6 +29,12 @@ services:
     command: node worker.js
     env_file: .env
     restart: unless-stopped
+    # CAD tessellation holds hundreds of MB for minutes (STACK.md § Part viewing).
+    # Without a cap the OOM killer picks the largest process on the box — which
+    # may be Postgres, taking the whole app down; and `restart: unless-stopped`
+    # plus pg-boss redelivery turns one oversized STEP file into a crash loop
+    # that also stops the overdue-invoice flip. Leave headroom for Postgres.
+    mem_limit: <TODO: e.g. 1g on a 4GB host>
     depends_on: { migrate: { condition: service_completed_successfully } }
 
   db:
@@ -40,6 +46,13 @@ services:
 
 volumes: { pgdata: {} }
 ```
+
+**The healthcheck does not restart anything.** Plain `docker compose`
+acts on `healthcheck` only for reporting — a hung-but-alive web process
+stays hung indefinitely, and `restart: unless-stopped` covers process
+*exit*, not unresponsiveness. Something outside the box must poll
+`/api/health` and alert a human (`docs/CONTROLS.md` § Go-live gates,
+`OPS-3`). Add an autoheal sidecar if you want in-box recovery.
 
 **Why the `migrate` one-shot exists**: web and worker boot from the
 same image — if either ran migrations, two could race, and a deploy
@@ -76,3 +89,20 @@ checklist item). Per-realm auth secrets are separate vars — see
 Where the VPS/PaaS lives, who has access, where DNS is, where TLS
 terminates (Caddy/Traefik/PaaS), and where to look when it's down
 (`incident-response.md` Scenario 4).
+
+**Picking the host, or moving to a cloud?** `docs/DEPLOYMENT_TARGETS.md`
+maps this same web + worker + Postgres shape onto a VPS, a PaaS, AWS,
+**AWS GovCloud**, Azure, and GCP — with the four concerns that change
+(compute, Postgres, object storage, secrets) and the two rules that
+don't (exactly one migration process; the worker is never the web
+service scaled to N). Fill these six lines for whichever target you
+pick — a target isn't adopted until they're answered:
+
+- [ ] Image registry, and how CI pushes to it (**in-partition** for
+      GovCloud — ECR in `us-gov-*`, not your commercial ECR).
+- [ ] How the one-shot migration runs, and how you know it exited 0.
+- [ ] Where secrets come from, and who can read them.
+- [ ] Where Postgres backups go + the date of the last **rehearsed
+      restore** (`backup-restore.md`; `/perp-status` flags it when stale).
+- [ ] The rollback command and where the previous image tag is recorded.
+- [ ] Who gets paged, and where they look first.
