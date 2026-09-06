@@ -172,6 +172,11 @@ on:
   pull_request:
   push:
     branches: [main]
+
+# Least privilege; a fork PR runs with whatever is granted here.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -196,9 +201,80 @@ jobs:
       - run: npm run test:coverage
         env: { DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test }
       - run: npm run build
+      # The rule gates. Without this step, SEC-2 and PIN-1..4 are documented
+      # intentions that nothing checks (docs/CONTROLS.md § The sensor map).
+      - run: bash scripts/gates.sh
       # - run: npx pa11y-ci               # accessibility — enable when the first
       #                                   # portal view ships (/perp-check a11y gate)
 ```
+
+⚠️ **A green CI blocks nothing by default.** GitHub leaves the merge button
+enabled next to a failing check. Add `CI` as a **required status check** on
+the default branch or none of the above is a gate — `docs/GITHUB.md` is the
+six-step setup, and it takes about five minutes.
+
+### Scaffold the `MONEY-4` integrity stubs
+
+`docs/CONTROLS.md` lists integrity construct tests as a **gate**, and
+`testing-conventions.md` says this skill scaffolds them. Do it, or the gate
+has no carrier at all:
+
+- `invoice-counter.concurrency.test.ts` — gap-free numbering under real
+  contention (two client instances; see `testing-conventions.md` § Integrity
+  constructs for why one client silently passes).
+- `invoice-immutability.test.ts` — a raw connection outside the extended
+  client must be rejected by the trigger, and `sent -> paid` must still work.
+
+Write them as **failing stubs** (`test.fails` / `it.todo` with the assertion
+spelled out) when the constructs do not exist yet, so the gap is visible from
+day one rather than discovered by a duplicate invoice number in front of a
+customer. A skipped test that nobody sees is the same as no test — prefer a
+failing stub with a clear name.
+
+### `scripts/gates.sh` — write this file too
+
+The steps above cover typecheck, tests, audit and build. These are the rule
+gates that had no carrier: `SEC-2`'s polarity and the pin/toolchain contract.
+Keep it short and keep every failure message naming its rule ID.
+
+```bash
+#!/usr/bin/env bash
+# Rule gates. A failure here must block the merge (docs/GITHUB.md).
+set -uo pipefail
+fail=0
+err() { echo "::error::$1"; fail=1; }
+
+# SEC-2 — the dev-auth stub must be unable to boot outside development, and
+# the guard must fail CLOSED. A guard predicated on NODE_ENV === 'production'
+# boots the stub whenever NODE_ENV is unset, misspelled, or 'staging'.
+if grep -rqi 'AUTH_MODE' --include='*.ts' --include='*.tsx' src app lib 2>/dev/null; then
+  grep -rq "refusing to start" --include='*.ts' src app lib 2>/dev/null     || err "SEC-2: no startup assertion refusing the dev-auth stub"
+  if grep -rq "NODE_ENV === 'production' &&" --include='*.ts' src app lib 2>/dev/null; then
+    err "SEC-2: the dev-auth guard fails OPEN (predicated on NODE_ENV==='production'); assert development positively instead"
+  fi
+fi
+
+# PIN-1 — load-bearing deps pinned exactly. A caret is an unattended upgrade.
+if grep -qE '"(next|prisma|@prisma/client|better-auth|pg-boss)": *"[\^~]' package.json; then
+  err "PIN-1: a load-bearing dependency uses ^ or ~ - pin it exactly"
+fi
+[ -f package-lock.json ] || err "PIN-2: no lockfile committed"
+
+# PIN-3 — every command the docs invoke still exists in the installed toolchain.
+npx prisma --help 2>/dev/null | grep -q 'generate'   || err "PIN-3: 'prisma generate' is gone from the installed CLI - a major bump removed it"
+
+# PIN-4 — documented idioms match the installed major.
+if [ -f prisma/schema.prisma ] && grep -q 'url *= *env(' prisma/schema.prisma; then
+  major=$(node -p "require('./package.json').dependencies.prisma||''" | tr -d '^~' | cut -d. -f1)
+  [ -z "$major" ] || [ "$major" -lt 7 ]     || err "PIN-4: Prisma >= 7 rejects url = env(...) in datasource - move it to prisma.config.ts"
+fi
+
+exit $fail
+```
+
+Make it executable and **prove each branch can fail before trusting it** —
+break one thing deliberately and confirm the step goes red. A gate nobody has
+seen fail is a gate nobody has tested (`STOP-6`).
 
 **CI needs a database, and this is not optional.** `CLAUDE.md` § Testing
 makes tenant isolation a test *category* — every portal route test asserts a

@@ -218,9 +218,14 @@ Outside-processing costs feed the project like any other **Expense**
 - **File / Document** *(optional)* — documents exchanged with the customer;
   the portal shows a **filtered subset** the client is allowed to see.
   Carries `kind` ('model' | 'drawing' | 'document'), `contentHash`, and
-  `exportControlled` — the ITAR/EAR flag gates the original **and every
-  derivative** identically, and each view/download of a flagged file is
-  audit-logged (`secure_coding.md` § 17).
+  **`classification`** — an enum `unrestricted | export-controlled | cui`
+  (a boolean cannot tell CUI from export-controlled, and a CMMC shop with
+  no ITAR data is a real case). Anything not `unrestricted` gates the
+  original **and every derivative** identically, and each view/download of
+  such a file is audit-logged (`secure_coding.md` § 17). Provision the
+  column in the first migration even when the answer is "no regulated
+  data" (`CUI-1`, `docs/CONTROLS.md`) — retrofitting it means classifying
+  live files by hand, from memory.
 - **Part → PartRevision → FileAttachment** *(optional — manufacturing)* —
   part number, revision letter/date, and the files attached to each
   revision, so "the model for rev C" is a query, not a filename

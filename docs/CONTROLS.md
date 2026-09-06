@@ -49,12 +49,12 @@ that aren't installed.
 | Unit tests | `TEST-*`, `TENANT-1` (isolation tests) | agent loop, pre-push, CI | **yes** | — |
 | Dependency audit | `DEP-1` | CI | **yes** | — |
 | Build | — | CI, pre-deploy | **yes** | — |
-| **Dev-auth assertion** | `SEC-2` | app startup | **yes, at boot** | it refuses to start; a CI step asserting the guard's *polarity* is not written yet |
+| **Dev-auth assertion** | `SEC-2` | app startup, `scripts/gates.sh` in CI | **yes** | — the CI step also rejects the fail-OPEN shape (`NODE_ENV === 'production' &&`) |
 | Migration one-shot exit 0 | `OPS-2` | deploy | by the runbook | automate it in the deploy job |
-| Integrity construct tests | `MONEY-4` | — | **no — nothing creates them** | `/perp-setup-testing` must scaffold the two concurrency stubs |
+| Integrity construct tests | `MONEY-4` | CI, once scaffolded | **yes, once written** | `/perp-setup-testing` scaffolds them as failing stubs; they must use two client instances or they pass against a broken counter |
 | Accessibility scan | `A11Y-1` | CI slot, commented out | **no — not enabled** | uncomment the `pa11y-ci` step once a portal view exists |
-| Exact-pin + lockfile check | `PIN-1`, `PIN-2` | `/perp-check` | on request only | add the step to `ci.yml` |
-| Toolchain contract | `PIN-3`, `PIN-4` | `/perp-check` | on request only | add the step to `ci.yml` |
+| Exact-pin + lockfile check | `PIN-1`, `PIN-2` | `/perp-check`, `scripts/gates.sh` in CI | **yes** | — |
+| Toolchain contract | `PIN-3`, `PIN-4` | `/perp-check`, `scripts/gates.sh` in CI | **yes** | — |
 | Stack review freshness | `PIN-5` | `/perp-check`, kit-check | no — drift signal | never; a date is not a gate |
 | Controlled-file egress gate | `CUI-1` | — | **no — not built** | the `File.classification` column + the uploader check (§ Compliance) |
 | Released-revision immutability | `DOC-1` | — | **no — not built** | ships with the Doc Control module |
@@ -91,9 +91,9 @@ candidate for promotion, and `/perp-check` reports the honest gap.
 
 | Rule | Currently enforced by | To fix it |
 |---|---|---|
-| `TENANT-1` tenant filter on every portal query | discipline + tests + review | **Yes — and it should be.** Postgres RLS, or a Prisma client extension that requires a tenant argument on scoped models. See the note below. |
+| `TENANT-1` tenant filter on every portal query | a Prisma client extension emitted by `/perp-build-core` (fail-closed), plus tests and review | Ships with the skeleton now. If you chose RLS instead, verify the `SET LOCAL`-inside-`$transaction` rule — see the note below |
 | `MONEY-1` integer minor units | review | Yes — a schema lint rejecting float/decimal money columns |
-| `SCALE-1` composite index on every `clientId` table | prose in two docs | Yes — a schema lint |
+| `SCALE-1` composite index on every `clientId` table | `/perp-build-core` adds them in the first migration; module contract row 11 for later tables | Add a schema lint so a table added by hand cannot skip it |
 | `SCALE-2` list endpoints take a limit/cursor | prose | Yes — a lint on route handlers |
 | `AUDIT-1` money mutations write an audit entry | review | Partly — a test per mutation route |
 | `A11Y-1` portal a11y baseline | a scan that isn't wired until a portal ships | Yes, and the wiring is the gate |

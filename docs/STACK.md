@@ -340,7 +340,8 @@ in the compose file).
 the domain model:
 
 1. **Schema**: `File.kind` ('model'|'drawing'|'document'),
-   `File.contentHash`, `File.exportControlled`; optional
+   `File.contentHash`, `File.classification` (enum: `unrestricted |
+   export-controlled | cui`); optional
    **Part → PartRevision → FileAttachment** so "the model for rev C" is
    a query, not a filename convention; a **FileDerivative** table
    (fileId, type 'gltf'|'thumbnail', storageKey,
@@ -359,7 +360,7 @@ the domain model:
    later touches zero upload code.
 4. **ITAR/export control**: the derived GLB **is** the same
    export-controlled technical data as the source STEP. The
-   `exportControlled` flag gates original and every derivative
+   `classification` field gates original and every derivative
    identically; flagged files are **never** sent to third-party hosted
    converters. For the audit trail, remember a presigned URL is a
    bearer credential S3 serves without telling your app — so for

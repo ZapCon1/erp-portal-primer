@@ -138,6 +138,14 @@ case_run() {
     failed=$((failed+1)); return
   fi
 
+  # A mutation that did not actually change a file would make kit-check pass
+  # honestly, and this harness would report it as "the check cannot fail".
+  # Verdict is only meaningful if the tree really differs.
+  if diff -rq "$W/base" "$W/m" --exclude=.git >/dev/null 2>&1; then
+    echo "  ! $name — MUTATION CHANGED NOTHING, verdict withheld"
+    failed=$((failed+1)); return
+  fi
+
   local out rc
   out=$(cd "$W/m" && bash scripts/kit-check.sh 2>&1); rc=$?
 
@@ -161,7 +169,7 @@ echo "mutations (each must turn kit-check red, for the right reason):"
 case_run 15 "dev-auth security spine deleted from /perp-build-core" \
   "no longer emits the dev-auth startup assertion" \
   py_cut .claude/skills/perp-build-core/SKILL.md \
-         '11. **Dev-mode sessions' '12. **Verify and run**'
+         '11. **Dev-mode sessions' '12. **Deployability'
 
 case_run 15 "dev-auth assertion silently reverted to the fail-OPEN shape" \
   "fail-closed polarity" \
@@ -316,6 +324,35 @@ case_run 20 "/perp-feature stops filling the module contract" \
 case_run 20 "the feature template loses contract row 8 (data classification)" \
   "data classification" \
   py_re features/_TEMPLATE.md 'Data classification' 'Misc notes'
+
+# --- the build path: retrofit-hostile things that must land in migration 1 ----
+case_run 18 "/perp-build-core stops provisioning File.classification" \
+  "has nothing to read" \
+  py_re .claude/skills/perp-build-core/SKILL.md 'classification' 'category'
+
+case_run 18 "/perp-build-core drops the SCALE-1 composite indexes" \
+  "composite clientId indexes" \
+  py_re .claude/skills/perp-build-core/SKILL.md 'SCALE-1' 'PERF-X'
+
+case_run 18 "the RLS pooled-connection warning is lost (half-done RLS leaks)" \
+  "pooled-connection warning" \
+  py_re .claude/skills/perp-build-core/SKILL.md 'SET LOCAL' 'set the tenant'
+
+case_run 18 "/perp-build-core emits no health endpoint the runbook curls" \
+  "no health endpoint" \
+  py_re .claude/skills/perp-build-core/SKILL.md 'api/health' 'api/status'
+
+case_run 18 "DOMAIN_MODEL reverts to the boolean exportControlled" \
+  "cannot express CUI" \
+  py_re docs/DOMAIN_MODEL.md 'classification' 'exportControlled'
+
+case_run 18 "the CI template stops writing scripts/gates.sh" \
+  "would stop gating" \
+  py_re .claude/skills/perp-setup-testing/SKILL.md 'gates\.sh' 'checks.sh'
+
+case_run 18 "MONEY-4's test loses the two-connection requirement" \
+  "one client serializes" \
+  py_re testing-conventions.md 'two separate client instances' 'one client'
 
 # ------------------------------------------------------------------ coverage --
 echo

@@ -124,10 +124,27 @@ counter", so state the requirement explicitly:
   transactions and have both request a number. Assert the results are
   distinct, sequential, and gap-free. A `MAX()+1` implementation fails this
   and passes the naive version.
+
+  ⚠️ **"Overlapping" is the entire test, so make it real.** Two interactive
+  transactions on a single client with a one-connection pool *serialize* —
+  the second simply waits — which is indistinguishable from sequential and
+  **passes against the broken implementation this test exists to catch**.
+  So: use **two separate client instances** (or a pool of at least 2);
+  raise the interactive-transaction `maxWait`/`timeout` for these tests,
+  because the correct-but-contended path is slower than the default and
+  will otherwise abort as a spurious failure; and assert that the second
+  transaction **blocks** rather than only that the two numbers differ.
+
+  **The acceptance test for the test:** deliberately swap the
+  implementation for `MAX()+1` and confirm it goes red. If it does not,
+  it is not a `MONEY-4` test regardless of what it is named.
 - **Immutability at the database, not just the app.** Attempt a direct
   `UPDATE` of a financial column on a non-draft invoice **bypassing the
   ORM hook** — the Postgres trigger must reject it. A test that goes
-  through the app layer only proves the app layer.
+  through the app layer only proves the app layer. "Bypassing" means a
+  **raw connection outside the extended Prisma client** — not
+  `$executeRaw` through the extended client, which the hook may still
+  intercept, leaving you testing the hook you meant to bypass.
 - **Status transitions still work.** The same trigger must permit
   `sent → paid` and the `paidAt` write, or you have made invoices immutable
   in a way that breaks collections.

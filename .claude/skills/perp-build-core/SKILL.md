@@ -76,6 +76,43 @@ scoping decision was already made in the interview; do not re-ask.
    with `promisedDate`/`dueDate` and the tenancy `clientId` columns
    from this first migration. Statuses are enums, money is integer
    cents — the invariants apply from the first migration, not later.
+
+   **Four things go in this migration because they cannot be added
+   cheaply later.** None is optional and none depends on the interview
+   answers:
+
+   - **`SCALE-1` — a composite index on every table carrying
+     `clientId`**: `@@index([clientId, <primary filter>])`, the primary
+     filter being whatever that table is actually listed by (status,
+     `promisedDate`, `createdAt`). Free now; a migration against live
+     data later.
+   - **`TENANT-1` — the fail-closed mechanism, not just the filter.**
+     Discipline is not the control (`docs/CONTROLS.md`). On this stack
+     the lower-footgun default is a **Prisma client extension** that
+     requires an explicit tenant argument on every `clientId`-scoped
+     model, so a query that forgets the filter fails to compile or
+     throws rather than returning another client's rows.
+     ⚠️ If you choose Postgres **RLS** instead, the tenant id must be set
+     with `SET LOCAL` **inside** an interactive `prisma.$transaction`,
+     and the app's role must not have `BYPASSRLS`. Outside a
+     transaction the setting persists on the pooled connection and the
+     *next* request — possibly another tenant's — inherits it. A
+     half-implemented RLS reads as a safety net while actively leaking.
+   - **`File.classification`** — an enum `unrestricted |
+     export-controlled | cui`, on the File model, **even when the answer
+     is "no regulated data"**. It is one column and costs nothing then.
+     `CUI-1`'s egress gate reads it, and retrofitting it onto live files
+     means classifying them by hand, from memory.
+   - **`IntegrationConnection.mayReceiveControlledData`** — boolean,
+     **default false**. The egress gate's other half.
+
+   (The enum supersedes the older boolean `File.exportControlled`, which
+   could not distinguish CUI from export-controlled — a CMMC shop with no
+   ITAR data is a real case. The File entity in `docs/DOMAIN_MODEL.md` is canonical.)
+   **`SCALE-2`**: every list query written in this pass takes a limit,
+   cursor preferred. A list with no bound is fine on sample data and is
+   the first thing to fall over on real data.
+
 3. **Both shells**: staff side nav + portal frame. Brand colors from
    `docs/BRAND.md` (the accessible text variants where recorded).
 4. **Both dashboards**: staff home with the **pain-point lead tile**
@@ -176,9 +213,23 @@ scoping decision was already made in the interview; do not re-ask.
      it needs a permission, a persistent banner naming the client being
      viewed, and an audit entry recording the real actor and the
      assumed `clientId` (`AUDIT-1`) — it is tenant impersonation.
-12. **Verify and run**: typecheck + build must pass (fix, don't ship
-    broken); start the dev server; hand over the URL.
-13. **Write down what you built.** Fill `CLAUDE.md` § Dev Server (the run
+12. **Deployability, in this pass** — `docs/runbooks/deploy.md` curls a
+    health endpoint, runs `docker build .`, and starts `node server.js`.
+    None of those exist unless you write them now, and all three are
+    retrofit-hostile:
+    - `next.config` with **`output: 'standalone'`** (what produces
+      `server.js`).
+    - **`app/api/health/route.ts`** — returns 200 only after a real
+      database round-trip, so an unhealthy container is detectable.
+    - **`lib/env.ts`** — validates required vars at import and
+      **throws**, so a missing `PORTAL_AUTH_SECRET` refuses the boot
+      instead of failing at a customer's first login.
+    - a **`Dockerfile`** matching the compose skeleton in
+      `docs/runbooks/deploy.template.md`.
+13. **Verify and run**: typecheck + build must pass (fix, don't ship
+    broken); start the dev server; hand over the URL. `STOP-6`: confirm
+    the pages actually render — an exit code is not proof.
+14. **Write down what you built.** Fill `CLAUDE.md` § Dev Server (the run
     command, the port, the typecheck command) and the § Tech Stack hosting
     line if it was decided, and tick the Bootstrap "confirm the default
     stack" box. Without this, the very next session reads an unfilled

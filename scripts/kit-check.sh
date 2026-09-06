@@ -357,9 +357,28 @@ grep -qi 'Bearer' docs/MODULES.md || err "MODULES.md lost the Toolpath Bearer-au
 
 
 echo "18. setup path stays painless (the blockers a new adopter actually hits)"
+# The first migration is the only cheap moment for these. Each was promised by
+# a doc and absent from /perp-build-core, which is the skill that writes it.
+grep -q 'File.classification\|classification' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core does not provision File.classification - CUI-1's gate has nothing to read, and retrofitting means hand-classifying live files"
+grep -q 'mayReceiveControlledData' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core does not provision the egress-gate boolean (CUI-1)"
+grep -q 'SCALE-1' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core no longer adds the composite clientId indexes (SCALE-1) - a later fix is a migration against live data"
+grep -q 'SET LOCAL' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core lost the RLS pooled-connection warning (TENANT-1) - half-implemented RLS leaks across tenants"
+grep -qi 'client extension' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core names no fail-closed TENANT-1 mechanism - discipline alone is not the control"
+grep -q "output: 'standalone'" .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core builds an app the deploy runbook cannot deploy (no standalone output, no server.js)"
+grep -q 'api/health' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core emits no health endpoint, but deploy.template.md curls one forever"
+grep -qi 'Dockerfile' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core emits no Dockerfile, but the deploy runbook runs docker build ."
+grep -q 'exportControlled' docs/DOMAIN_MODEL.md   && err "DOMAIN_MODEL.md still specifies the boolean exportControlled - it cannot express CUI vs export-controlled"
+
 grep -qi 'Getting a database' docs/STACK.md || err "STACK.md lost the how-to-get-Postgres section (build-core refuses to run without one)"
 grep -q 'prisma.config.ts' docs/STACK.md || err "STACK.md lost the Prisma 7 datasource change - adopters hit a P1012 on their first migration"
 grep -qi 'dist-tags' docs/STACK.md || err "STACK.md lost the warning that prisma@latest may be a release candidate"
+# MONEY-4 and the PIN gates had a "yes" in the Gates column and no carrier.
+# If the carrier goes, the row must stop claiming to gate.
+grep -q 'gates.sh' .claude/skills/perp-setup-testing/SKILL.md   || err "the CI template no longer writes scripts/gates.sh - SEC-2 and PIN-1..4 would stop gating"
+grep -qi 'required status check' .claude/skills/perp-setup-testing/SKILL.md   || err "the CI template no longer says a green CI blocks nothing without branch protection"
+grep -qi 'two separate client instances' testing-conventions.md   || err "MONEY-4's concurrency test lost the two-connection requirement - one client serializes and passes against a broken counter"
+grep -qi 'invoice-counter.concurrency' .claude/skills/perp-setup-testing/SKILL.md   || err "/perp-setup-testing no longer scaffolds the MONEY-4 stubs that CONTROLS.md says it does"
+
 grep -qi 'Transactional email' docs/MODULES.md || err "MODULES.md lost the transactional-email module"
 grep -qiE 'SPF|DKIM' docs/MODULES.md || err "email module lost the domain-verification setup path"
 grep -qi 'magic link' docs/MODULES.md || err "email module no longer says portal login depends on it"
