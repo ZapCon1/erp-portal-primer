@@ -296,6 +296,27 @@ case_run 18 "CI stops running the selftest (checks could rot unnoticed)" \
   "no longer proves the checks can fail" \
   py_re .github/workflows/kit-check.yml 'kit-check-selftest' 'kit-check-disabled'
 
+# --- STOP-8 and the module contract ----------------------------------------
+case_run 20 "STOP-8 removed (stop rules become waivable by a tracked file)" \
+  "lost STOP-8" \
+  py_re CLAUDE.md 'STOP-8' 'STOP-X'
+
+case_run 20 "the push waiver moves back into a tracked file" \
+  "TRACKED file" \
+  sh -c "printf -- '- standing confirmation for /perp-push is recorded here.\n' >> CLAUDE.md"
+
+case_run 20 "the untracked marker stops being gitignored" \
+  "not gitignored" \
+  py_re .gitignore '(?m)^\.claude/\*\.local$' '# removed'
+
+case_run 20 "/perp-feature stops filling the module contract" \
+  "does not fill the module contract" \
+  py_re .claude/skills/perp-feature/SKILL.md 'module contract' 'plan section'
+
+case_run 20 "the feature template loses contract row 8 (data classification)" \
+  "data classification" \
+  py_re features/_TEMPLATE.md 'Data classification' 'Misc notes'
+
 # ------------------------------------------------------------------ coverage --
 echo
 echo "coverage: kit-check steps with no mutation case here"

@@ -27,6 +27,31 @@ them in sync (shared helper, shared component). If it touches 👤 or 🌐,
 `docs/PORTAL_UX.md` applies — note the empty/loading/error states and any
 accessibility considerations here.>
 
+## Module contract
+
+<**Delete this whole section if this is a plain feature.** If it is
+module-sized (`docs/MODULES.md` — it adds entities, or another module could
+depend on it), every line below is answered before code. "n/a" is a valid
+answer; blank is not.>
+
+| # | Declaration | Answer |
+|---|---|---|
+| 1 | Depends on (spine + which modules) | |
+| 2 | Entities added | |
+| 3 | Both surfaces — the 🛠 face **and** the 👤 face, or "no portal face, because…" | |
+| 4 | Shared helpers — every number it computes, named once | |
+| 5 | Background jobs — queue names, concurrency, timeout | |
+| 6 | Settings it adds | |
+| 7 | Audit events it writes | |
+| 8 | **Data classification** — does it touch export-controlled or CUI data, and may any of it leave your network? (default: no) | |
+| 9 | Trade signal that should activate it | |
+| 10 | Prune cost — what breaks if it is removed later | |
+| 11 | Indexes and expected row growth (`SCALE-1`/`SCALE-2`) | |
+
+<Row 8 is the one that is expensive to retrofit: `CUI-1`'s egress gate reads
+the classification of the data a module touches. Row 3 is what keeps parity
+from being discovered at release.>
+
 ## Domain model changes
 
 <New entities or fields. Reference docs/DOMAIN_MODEL.md. Call out any new

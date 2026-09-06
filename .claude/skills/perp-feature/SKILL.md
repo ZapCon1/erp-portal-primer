@@ -75,12 +75,29 @@ building something, before writing code.
      rather than inventing detail — but make a real first pass; don't hand
      back an empty template.
 
-5. **Register it in the index.** Add a row to the table in
+5. **If it is module-sized, fill the module contract.** A feature is
+   module-sized when it adds its own entities, or when another module could
+   depend on it (`docs/MODULES.md` § The module contract). Then the
+   template's **Module contract** table is filled in before any code — all
+   11 rows, "n/a" where it genuinely does not apply, never blank. If it is a
+   plain feature, delete that section from the doc.
+
+   Two rows are not optional and not deferrable:
+   - **Row 3 (both surfaces)** — the 👤 face or an explicit "no portal face,
+     because…". This is where `PARITY-1` is enforced instead of discovered
+     at release.
+   - **Row 8 (data classification)** — whether it touches export-controlled
+     or CUI data and whether any of it may leave the network. `CUI-1`'s
+     egress gate reads this, and it is the most expensive line in the kit to
+     retrofit. Default answer is no; an unconsidered blank is not the same
+     as no.
+
+6. **Register it in the index.** Add a row to the table in
    `features/feature_overview.md`: feature name, maturity ⚪ Planned, the
    surfaces, the plan-doc filename, and a one-line note. Keep the table
    sorted the way it already is.
 
-6. **Report.** Tell the user the path of the new doc and summarize the phase
+7. **Report.** Tell the user the path of the new doc and summarize the phase
    plan you drafted. Invite them to refine the plan before any code is
    written.
 

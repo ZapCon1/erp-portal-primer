@@ -134,6 +134,7 @@ must answer.
 | 8 | **Data classification** — does it touch export-controlled or CUI data, and may any of it leave your network? | The most expensive thing on this list to retrofit. Default answer: no |
 | 9 | **Trade signal** that should activate it | Keeps the catalog's proposal engine current |
 | 10 | **Prune cost** — what breaks if it's removed later | An honest module can be removed; if it can't, it was spine |
+| 11 | **Indexes and expected row growth** — the composite `(clientId, <primary filter>)` index on every table it adds, and which of its lists need a cursor | `SCALE-1`/`SCALE-2`. The moment the tables are designed is the moment these cost nothing; afterwards they are a migration against live data |
 
 ---
 

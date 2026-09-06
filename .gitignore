@@ -32,6 +32,9 @@ Thumbs.db
 
 # Claude Code local settings (machine-specific)
 .claude/settings.local.json
+# Local, per-clone decisions. Never tracked: a confirmation a remote change
+# could grant is not a confirmation (STOP-8).
+.claude/*.local
 
 # Review, audit and screenshot output — local only, by design.
 #

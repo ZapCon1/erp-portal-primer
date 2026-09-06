@@ -421,6 +421,22 @@ grep -q 'WHEN-IT-GOES-WRONG' CLAUDE.md || err "nothing points the owner at the r
 # The two things that make everything else recoverable.
 grep -qi 'commit when it works' docs/WHEN-IT-GOES-WRONG.md || err "recovery guide lost the commit-when-it-works habit"
 grep -qi 'Stop. In plain language' docs/WHEN-IT-GOES-WRONG.md || err "recovery guide lost the reset phrase"
+
+# STOP-8: the waiver mechanism must stay OUT of the blast radius. /perp-push
+# forbade file-sourced confirmation in one bullet and designated a TRACKED file
+# as the opt-out in the next; one appended line then meant auto-push to a public
+# remote. Assert both halves: the rule exists, and the marker is untracked.
+grep -q 'STOP-8' CLAUDE.md || err "CLAUDE.md lost STOP-8 (a stop rule is never waived by a file)"
+grep -q 'push-standing.local' .claude/skills/perp-push/SKILL.md   || err "/perp-push no longer reads its standing confirmation from an untracked marker (STOP-8)"
+grep -qE '^\.claude/\*\.local$' .gitignore   || err ".claude/*.local is not gitignored - the push waiver would become a tracked, PR-writable file (STOP-8)"
+grep -q 'standing confirmation for' CLAUDE.md   && err "CLAUDE.md still grants /perp-push standing confirmation in a TRACKED file (STOP-8)"
+
+# The 10-point module contract named /perp-feature as its carrier, and
+# /perp-feature did not contain the word 'module'. A contract with no owner is
+# answered by nobody.
+grep -qi 'module contract' .claude/skills/perp-feature/SKILL.md   || err "/perp-feature does not fill the module contract that MODULES.md says it fills"
+grep -qi 'Module contract' features/_TEMPLATE.md   || err "features/_TEMPLATE.md has no Module contract section - the contract has nowhere to be answered"
+grep -qi 'Data classification' features/_TEMPLATE.md   || err "the feature template dropped contract row 8 (data classification) - the most retrofit-hostile line in the kit"
 # STOP-2 is the one a novice can never catch unaided.
 # A presence-grep is blind to INVERSION: flipping "never weaken a test" to
 # "you may weaken a test" keeps the fragment and passes. Assert the normative
