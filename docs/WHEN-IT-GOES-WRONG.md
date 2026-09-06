@@ -60,7 +60,9 @@ failure — it is the fastest route out of a hole.
 3. **Chasing a version upgrade you did not need.** If it works, pin it and
    move on (`docs/CONTROLS.md` § Idiom churn).
 4. **Adding a module because it was on a list.** The catalogue is a menu, not
-   a plan. Most shops need the core plus two.
+   a plan. Most shops build the core plus two or three to start with. If
+   the assistant proposes more than that at once, ask which one removes
+   the friction in your scope document first.
 5. **Rewriting instead of finishing.** A rewrite feels like progress and
    produces none.
 

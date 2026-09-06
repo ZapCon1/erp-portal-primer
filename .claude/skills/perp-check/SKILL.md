@@ -46,7 +46,8 @@ Idiom churn is the failure this catches, and it is worth catching **before**
 the other sensors, because otherwise it surfaces as a baffling error inside
 a migration rather than as "the command we depend on is gone".
 
-Check four things and report each as a gate:
+Check the `PIN-*` rules and report each. `PIN-1` through `PIN-4` are
+gates; `PIN-5` is a drift signal and never fails the run:
 
 - **`PIN-1` — exact pins.** Read `package.json`: the load-bearing
   dependencies (the framework, the ORM, the auth library, the job runner)

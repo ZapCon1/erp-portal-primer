@@ -17,6 +17,15 @@ throughout the primer without further explanation.
 - **Prune** — delete the parts of this kit you don't need, on purpose, rather than carrying dead rules forward.
 - **VPS (virtual private server)** — a rented Linux computer in a data centre. The kit's default place to run the app; you own patching it.
 - **a11y** — shorthand for *accessibility* (a, then 11 letters, then y).
+- **Guide / sensor** — a *guide* steers before the fact (a document, a skill); a *sensor* observes after it (a type check, a test, a grep). Guides are weak because following them is optional. `docs/CONTROLS.md` splits every rule this way.
+- **Gate / drift signal** — a *gate* stops something: a red build blocks the merge. A *drift signal* is a number you watch and never fail on, because a hard threshold on it invites gaming (coverage is the classic). Promoting a drift signal to a gate is a mistake, not an upgrade.
+- **Required status check / branch protection** — the GitHub setting that makes a red build actually block the merge button. Without it a failing check is only a red mark somebody can ignore (`docs/GITHUB.md`).
+- **Mutation test** — deliberately breaking something to confirm the check that guards it goes red. `scripts/kit-check-selftest.sh` does this: a guardrail nobody has watched fail is not yet a guardrail.
+- **Fail closed / fail open** — a *fail-closed* control refuses when it is unsure (safe); a *fail-open* one permits. A login guard that only blocks when it can positively confirm "production" fails open, because an unset setting lets it through.
+- **Spine** — the parts of the system nothing works without: clients, projects, phases, tasks, time, invoices. Never optional (`docs/MODULES.md`).
+- **Module** — a capability you can leave out entirely, like scheduling or doc control. Catalogued is not the same as planned.
+- **Dimension** — something that cuts across everything and can never be an optional module: the customer portal, and your compliance posture. You do not "do the portal later"; every feature ships its portal face with it.
+- **Pin / lockfile** — *pinning* means recording an exact version of a library ("7.10.0", not "^7"). The *lockfile* records the exact versions of everything, including libraries your libraries use. Together they stop an unrelated install from silently upgrading you.
 - **Egress** — data leaving your network. The "egress trap" is about which outside services your files reach.
 - **Rollup** — a number computed by adding up other rows (a project's total hours). Storing one creates a second source of truth, which is why the kit is strict about them.
 - **Invariant** — a rule that must always hold, no matter what. The money rules in DOMAIN_MODEL are invariants.

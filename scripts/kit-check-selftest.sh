@@ -363,6 +363,27 @@ case_run 21 "the rule index is deleted" \
   "lost its rule index" \
   py_re docs/CONTROLS.md '## The rule index' '## Assorted notes'
 
+# --- navigation, the graph, and the adopter's delete decision ----------------
+case_run 17 "MODULES.md's graph stops showing integrations attaching to the spine" \
+  "attaching to the spine" \
+  py_re docs/MODULES.md 'INTEGRATION MODULES' 'OTHER STUFF'
+
+case_run 17 "the Toolpath -> Part Viewing edge is lost from the graph" \
+  "easy to miss" \
+  py_re docs/MODULES.md 'Toolpath \(DFM\) ─+▶ Part Viewing' 'Toolpath (DFM)'
+
+case_run 17 "MODULES.md loses its table of contents" \
+  "table of contents" \
+  py_re docs/MODULES.md '## Contents' '## Notes'
+
+case_run 18 "scripts/README.md is deleted (adopters must triage bash again)" \
+  "left to triage" \
+  rm -f scripts/README.md
+
+case_run 18 "README again tells adopters to delete kit-check wholesale" \
+  "delete kit-check wholesale" \
+  sh -c "printf 'The workflow only guards the primer - delete it after adoption.\n' >> README.md"
+
 # ------------------------------------------------------------------ coverage --
 echo
 echo "coverage: kit-check steps with no mutation case here"

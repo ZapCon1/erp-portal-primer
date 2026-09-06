@@ -10,6 +10,19 @@ them, it maps them.
 
 ---
 
+## Contents
+
+- [The rule index](#the-rule-index--resolve-any-id-here) — **look up any rule ID here**
+- [Two kinds of control](#two-kinds-of-control) — guides vs sensors
+- [The sensor map](#the-sensor-map) — what gates *today*
+- [Rules with no sensor yet](#rules-with-no-sensor-yet) — the honest gaps
+- [Compliance controls](#compliance-controls-as9100--itarear--cmmc)
+- [Idiom churn (PIN-*)](#idiom-churn-pin----the-one-risk-this-kit-can-actually-measure)
+- [Why some rules must never gate](#why-some-rules-must-never-gate)
+- [Go-live gates](#go-live-gates) — the permanent list
+
+---
+
 ## The rule index — resolve any ID here
 
 `CLAUDE.md` promises that a review, a check failure, or a plan can cite an
@@ -71,6 +84,14 @@ meet anywhere resolves here.
 | `STRUCT-1` | One concept per file, one responsibility per function; split over 500 lines | `CLAUDE.md` § Code Structure | no — drift signal |
 | `TENANT-1` | Tenant = Client. Every portal query filters by `clientId`, enforced by a mechanism that fails closed | `CLAUDE.md` § Key Concepts | no — see § The sensor map |
 | `TEST-2` | Coverage is reported, never gated | `testing-conventions.md` | no — drift signal |
+
+⚠️ **These IDs are local to this repo.** Short rule IDs are a common
+convention, and other kits, templates and house style guides use the same
+shapes — `SEC-2` and `STRUCT-1` are the kind of label two different documents
+can both plausibly issue, meaning different things. If you paste in rules
+from anywhere else, **an ID means what this table says it means**; check for
+a collision before adopting the paragraph, and rename the incomer rather
+than renumbering yours (renumbering breaks every citation you already have).
 
 ⚠️ **`STOP-*` are the least-enforced rules in the kit, not the most.** They
 bind the assistant's behavior, and nothing computational can verify a model

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Consistency checks for the PRIMER'S OWN cross-references.
 # Run locally (bash scripts/kit-check.sh) or via .github/workflows/kit-check.yml.
-# Adopters: delete scripts/ + the workflow, or adapt if you renamed perp-.
+# Adopters: see scripts/README.md - some checks are the primer's bookkeeping
+# (delete them), others bind YOUR repo forever (keep them). Do not delete blind.
 # Rule: every new mirror/claim a release adds gets its check added HERE in
 # the same commit.
 set -uo pipefail
@@ -76,6 +77,16 @@ for f in $(ls docs/runbooks/*.md 2>/dev/null | grep -v '\.template\.md$'); do
   n=$(grep -c '<TODO' "$f" || true)
   [ "$n" -eq 0 ] || err "$f is a live runbook but still has $n <TODO> marker(s) — CONTROLS.md OPS-1 gates on this"
 done
+# OPS-1's loop above iterates non-template runbooks - and in the shipped kit
+# there are none, so it can never fire here. Once an adopter has code, assert
+# the SHAPE instead: the two runbooks that must be real before go-live.
+if [ -f package.json ]; then
+  for rb in deploy incident-response; do
+    if [ ! -f "docs/runbooks/$rb.md" ]; then
+      err "docs/runbooks/$rb.md does not exist - OPS-1 requires it filled before go-live, and the first outage is not when to write it"
+    fi
+  done
+fi
 todo_total=$(grep -ro '<TODO' --include='*.md' --exclude-dir=reviews . | wc -l | tr -d ' ')
 echo "   (${todo_total} <TODO> markers across the kit — expected while templates are unfilled)"
 
@@ -351,6 +362,13 @@ grep -qi 'classification' docs/CONTROLS.md || err "CONTROLS.md lost the one data
 grep -qi 'default false' docs/CONTROLS.md || err "CUI-1 no longer states that the egress gate defaults to false"
 grep -q 'mayReceiveControlledData' docs/MODULES.md || err "the egress gate field vanished from MODULES.md"
 # Toolpath facts were verified against the live spec — keep them honest.
+# The graph's only integration edge used to descend from the Accounting column
+# while the text inside that same edge said "attach to the spine".
+grep -q 'INTEGRATION MODULES' docs/MODULES.md   || err "MODULES.md's graph no longer shows integration modules attaching to the spine"
+grep -q 'Toolpath (DFM) .*Part Viewing' docs/MODULES.md   || err "MODULES.md's graph lost the Toolpath -> Part Viewing dependency (the one the text calls easy to miss)"
+grep -q '## Contents' docs/MODULES.md   || err "MODULES.md lost its table of contents (600+ lines, 17 sections)"
+grep -q '## Contents' docs/CONTROLS.md   || err "CONTROLS.md lost its table of contents"
+
 grep -qi 'millimetres' docs/MODULES.md || err "MODULES.md lost the Toolpath mm/degrees unit warning (a 25.4x error in a number that feeds a price)"
 grep -qi 'server-sent event' docs/MODULES.md || err "MODULES.md reverted to polling; the API offers an SSE stream"
 grep -qi 'Bearer' docs/MODULES.md || err "MODULES.md lost the Toolpath Bearer-auth detail"
@@ -369,6 +387,9 @@ grep -q 'api/health' .claude/skills/perp-build-core/SKILL.md   || err "/perp-bui
 grep -qi 'Dockerfile' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core emits no Dockerfile, but the deploy runbook runs docker build ."
 grep -q 'exportControlled' docs/DOMAIN_MODEL.md   && err "DOMAIN_MODEL.md still specifies the boolean exportControlled - it cannot express CUI vs export-controlled"
 
+[ -f scripts/README.md ] || err "scripts/README.md missing - adopters are left to triage 400 lines of bash to decide what to delete"
+grep -qi 'bind YOUR repo' scripts/README.md || err "scripts/README.md no longer says which checks bind the adopter's repo"
+grep -q 'delete it after adoption' README.md && err "README again tells adopters to delete kit-check wholesale - half of it binds their repo (see scripts/README.md)"
 grep -qi 'Getting a database' docs/STACK.md || err "STACK.md lost the how-to-get-Postgres section (build-core refuses to run without one)"
 grep -q 'prisma.config.ts' docs/STACK.md || err "STACK.md lost the Prisma 7 datasource change - adopters hit a P1012 on their first migration"
 grep -qi 'dist-tags' docs/STACK.md || err "STACK.md lost the warning that prisma@latest may be a release candidate"

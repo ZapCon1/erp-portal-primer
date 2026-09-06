@@ -47,7 +47,24 @@ Doc control (AS9100) *is* a module because it has entities and screens.
 
 ---
 
+## Contents
+
+- [The four layers](#the-four-layers) — spine · capability · integration · dimensions
+- [Dependency graph](#dependency-graph)
+- [The module contract](#the-module-contract) — the 11 declarations every module answers
+- [Capability modules](#capability-modules)
+- [Integration modules](#integration-modules)
+- [Dimensions](#dimensions) — the portal, and the compliance posture
+
+**If you read one section, read [The module contract](#the-module-contract).**
+It governs every module here; the long integration sections below are
+reference material you reach for when you build one.
+
+---
+
 ## Dependency graph
+
+Arrows point **from** the dependent thing **to** what it needs.
 
 ```
                          ┌─────────────────┐
@@ -55,31 +72,38 @@ Doc control (AS9100) *is* a module because it has entities and screens.
                          │  (never pruned) │  tasks · time · invoices
                          └────────┬────────┘  payments · audit
                                   │
-     ┌──────────────┬─────────────┼──────────────┬───────────────┐
-     │              │             │              │               │
-Scheduling    Part Viewing   Purchasing &   Doc Control      Accounting
-(dates +        (CAD /         Routing       (AS9100)        (AR depth)
- dispatch)      OpenCascade)      │              │               │
-                     │            │              │               │
-                     ├────────────┘              │               │
-                     │  routing ops reference    │               │
-                     │  part revisions           │               │
-                     │                           │               │
-                     └───────────────────────────┘               │
-                        a drawing IS a controlled document       │
-                                                                 │
-Quality records (inspection · NCR · CAPA) ── pairs with Doc Control
-Lot & serial traceability (schema-shaped; only if certified/contractual)
-Cost build-up & job costing (feeds Estimates; only price reaches the portal)
-Inventory (optional, later tier — never a first slice)            │
-                                                                 │
-── Integration modules (attach to the spine, own no entities) ────┘
-Google Workspace / Microsoft 365 / Outlook  .  Payments
-Transactional email (Resend / Postmark / SES) -- BLOCKS portal login until DNS verifies
-Accounting sync (QuickBooks / Xero / Puzzle) ── pairs with Accounting
-Toolpath (DFM) ─────────────────────────────── requires Part Viewing
-File storage (Box · Dropbox · SharePoint · Drive) ── constrained by Doc
-     Control (the app owns rev letters) and by the proxy-and-log rule
+      ┌───────────┬───────────┬───┴───────┬───────────┬───────────┐
+      │           │           │           │           │           │
+ Scheduling  Part Viewing Purchasing   Doc Control Accounting  Quality
+ (dates +      (CAD /     & Routing     (AS9100)   (AR depth)  records
+  dispatch)  OpenCascade)     │             │                  (NCR/CAPA)
+                  ▲           │             │                      │
+                  │           │             │                      ▼
+                  ├───────────┘             │              (pairs with
+                  │  routing operations     │               Doc Control)
+                  │  reference part revs    │
+                  │                         │
+                  └─────────────────────────┘
+                    a drawing IS a controlled document
+                    (they share PartRevision)
+
+  Also hanging off the SPINE, with no cross-module edges:
+      Lot & serial traceability   (schema-shaped; only if certified/contractual)
+      Cost build-up & job costing (feeds Estimates; only price reaches the portal)
+      Inventory                   (later tier — never a first slice)
+
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  INTEGRATION MODULES — attach to the SPINE, own no entities          │
+  └──────────────────────────────────────────────────────────────────────┘
+      Google Workspace / Microsoft 365 / Outlook
+      Payments
+      Transactional email (Resend / Postmark / SES)
+            └─ BLOCKS portal login until DNS verifies. Start it day one.
+      Accounting sync (QuickBooks / Xero / Puzzle) ──▶ Accounting
+      Toolpath (DFM) ──────────────────────────────▶ Part Viewing
+      File storage (Box · Dropbox · SharePoint · Drive) ──▶ Doc Control
+            └─ constrained by it: the app owns rev letters, and flagged
+               files follow the proxy-and-log rule
 ```
 
 Two dependencies are load-bearing and easy to miss:
@@ -112,7 +136,9 @@ menu, and a module list is very good at looking like a build list.
    friction; "our AS9100 auditor writes us up for uncontrolled prints"
    is.
 4. **Declining a module is the default answer.** Most shops need the
-   spine plus two.
+   spine plus two or three in the first months. The trade-signal table
+   proposes more than that for most shops — that is the menu doing its
+   job, not a build order. Modules are inert until you pick one.
 
 ---
 

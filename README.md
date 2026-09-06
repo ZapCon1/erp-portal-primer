@@ -476,7 +476,8 @@ release, and the quarterly restore rehearsal.
 - **Your app's CI config and `.claude/settings.local.json`** — stack- and
   machine-specific; `/perp-setup-testing` writes the starting `ci.yml`
   when the stack exists. (The shipped `kit-check.yml` only guards the
-  primer's own cross-references — delete it after adoption.)
+  primer's own cross-references; `scripts/README.md` says which checks are
+  ours to delete and which bind your repo.)
 
 ---
 
