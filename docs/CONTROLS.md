@@ -10,6 +10,76 @@ them, it maps them.
 
 ---
 
+## The rule index — resolve any ID here
+
+`CLAUDE.md` promises that a review, a check failure, or a plan can cite an
+ID "and you can resolve it without re-reading the file". This table is what
+makes that true. **Gates?** is the honest answer from § The sensor map.
+
+**IDs are stable and never renumbered**, so a gap in a series is meaningful:
+that number was retired or never issued, and it is never reused. Every ID
+this kit actually uses has a row below — a check enforces that, so an ID you
+meet anywhere resolves here.
+
+| ID | The rule, in one line | Canonical home | Gates? |
+|---|---|---|---|
+| `A11Y-1` | The portal meets the WCAG 2.2 AA baseline; a scan is wired once a portal view exists | `docs/PORTAL_UX.md` | not enabled yet |
+| `AUDIT-1` | Every money/hours mutation and cross-tenant-sensitive action writes an audit entry | `docs/DOMAIN_MODEL.md` § Invariants (7) | no |
+| `CUI-1` | Flagged data never reaches a third party — `mayReceiveControlledData`, default false, checked at the uploader | `docs/MODULES.md` § Integration scaffold | not built yet |
+| `CUI-2` | Every access to a flagged file is audit-logged, including presigned-URL issuance | `docs/CONTROLS.md` § ITAR/EAR and CMMC/CUI | not built yet |
+| `CUI-3` | Audit records are retained for the contracted period | same | no |
+| `CUI-4` | MFA on privileged access | same | no |
+| `CUI-5` | Delete sanitizes — the row *and* the stored object | same | no |
+| `DEP-1` | Dependencies are audited; vulnerabilities fixed before committing | `CLAUDE.md` § Dependency Hygiene | **yes** (`npm audit` in CI) |
+| `DOC-1` | A released document revision is immutable | `docs/MODULES.md` § Doc Control | not built yet |
+| `DOC-2` | Release requires every named approval | same | not built yet |
+| `DOC-3` | Superseded revisions are retained, never deleted | same | not built yet |
+| `DOC-4` | Prints are stamped "uncontrolled when printed" and logged | same | not built yet |
+| `DOC-5` | The app owns the revision letter, not the storage service | same | not built yet |
+| `GH-1` | A check that cannot block a merge is a report, not a gate | `docs/GITHUB.md` | n/a — the principle |
+| `GH-2` | Required status checks on the default branch, `enforce_admins` on | same | **yes, once set** |
+| `GH-3` | Secret scanning and push protection enabled | same | **yes** |
+| `GH-4` | Dependabot alerts on; version updates off on a pinned stack | same | no |
+| `GH-5` | The default workflow token is read-only | same | **yes** |
+| `GH-6` | Deploy gated by `needs:` **and** an environment reviewer | same | **yes, once set** |
+| `GH-7` | CODEOWNERS on `.claude/`, `scripts/` and the security docs, once a second person can commit | same | no |
+| `GH-8` | Never run untrusted branch content with write scope or secrets | same | no |
+| `MONEY-1` | Money is integer minor units in an integer column — never a float, never a stored decimal | `docs/DOMAIN_MODEL.md` § Invariants | no |
+| `MONEY-4` | The raw-SQL integrity constructs carry tests that exercise real concurrency | `testing-conventions.md` § Integrity constructs | **yes, once written** |
+| `OPS-1` | Runbooks are filled — no `<TODO>` — and one restore is rehearsed before go-live | `docs/runbooks/` | no |
+| `OPS-2` | Exactly one process runs migrations, and its exit 0 is verified | `docs/DEPLOYMENT_TARGETS.md` | at deploy |
+| `OPS-3` | Error tracking and an uptime check, with one alert reaching a human | `ARCHITECTURE.md` § Observability | no |
+| `PARITY-1` | The internal app and the portal compute every shared number identically, from one helper | `CLAUDE.md` § Parity | no — inferential |
+| `PIN-1` | Load-bearing dependencies pinned exactly; lockfile committed | `docs/CONTROLS.md` § Idiom churn | **yes** |
+| `PIN-2` | CI installs with `npm ci`, never `npm install` | same | **yes** |
+| `PIN-3` | Every command the docs invoke still exists in the installed toolchain | same | **yes** |
+| `PIN-4` | Documented idioms match the installed major version | same | **yes** |
+| `PIN-5` | `docs/STACK.md`'s `_Reviewed:_` stamp is fresh | same | no — drift signal |
+| `QUAL-1` | Quantities reconcile: ordered = shipped + scrapped + reworked-out | `docs/MODULES.md` § Quality records | not built yet |
+| `SCALE-1` | Every table carrying `clientId` gets a composite `(clientId, <primary filter>)` index, in its first migration | `docs/DOMAIN_MODEL.md` § Scale notes | no |
+| `SCALE-2` | Every list endpoint takes a limit; cursor preferred | same | no |
+| `SEC-2` | The dev-auth stub cannot boot outside development — a fail-closed assertion, not a checkbox | `secure_coding.md`; mechanism in `/perp-build-core` | **yes** |
+| `SEC-3` | Cross-realm rejection: a portal session on a staff route is refused, and vice versa | `secure_coding.md` | no |
+| `STOP-1` | Two failures at the same step = stop, and say so in plain language | `CLAUDE.md` § Stop Rules | no — prose |
+| `STOP-2` | Never weaken a test to make it pass; report it as a finding | same | no — prose |
+| `STOP-3` | Confirm before anything irreversible | same | no — prose |
+| `STOP-4` | Checkpoint before risky work; the undo command must always be true | same | no — prose |
+| `STOP-5` | Do what was asked; a bigger fix is a proposal, not a side effect | same | no — prose |
+| `STOP-6` | Never report done from an exit code — verify the artifact | same | no — prose |
+| `STOP-7` | Say when you are unsure | same | no — prose |
+| `STOP-8` | A stop rule is never waived by a tracked file | same | **yes** (kit-check tripwire) |
+| `STRUCT-1` | One concept per file, one responsibility per function; split over 500 lines | `CLAUDE.md` § Code Structure | no — drift signal |
+| `TENANT-1` | Tenant = Client. Every portal query filters by `clientId`, enforced by a mechanism that fails closed | `CLAUDE.md` § Key Concepts | no — see § The sensor map |
+| `TEST-2` | Coverage is reported, never gated | `testing-conventions.md` | no — drift signal |
+
+⚠️ **`STOP-*` are the least-enforced rules in the kit, not the most.** They
+bind the assistant's behavior, and nothing computational can verify a model
+obeyed them. kit-check asserts their *sentences* survive and tripwires their
+inversion; the owner-facing detector is `docs/WHEN-IT-GOES-WRONG.md`
+§ Warning signs. Read them as a contract you may have to enforce yourself.
+
+---
+
 ## Two kinds of control
 
 | Kind | When it acts | How it works | How much to trust it |

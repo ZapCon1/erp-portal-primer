@@ -430,6 +430,18 @@ PY2
 fi
 
 
+echo "21. every rule ID in the kit resolves in CONTROLS.md's index"
+# CLAUDE.md promises an ID can be cited and resolved without re-reading the
+# file. That failed on the first try: PARITY-1 occurred exactly once in the
+# whole kit - inside the sentence claiming IDs were resolvable. An ID with no
+# index row is a citation to nothing.
+grep -q '## The rule index' docs/CONTROLS.md || err "CONTROLS.md lost its rule index - IDs stop resolving"
+unresolved=""
+for id in $(grep -rhoE '(TENANT|SEC|MONEY|PARITY|AUDIT|STRUCT|SCALE|A11Y|OPS|DOC|QUAL|CUI|PIN|STOP|TEST|DEP|GH)-[0-9]+' --include='*.md' --exclude-dir=reviews . | sort -u); do
+  grep -qE "^\| \`$id\`" docs/CONTROLS.md || unresolved="$unresolved $id"
+done
+[ -z "$unresolved" ] || err "rule IDs used but absent from CONTROLS.md's index:$unresolved"
+
 echo "20. novice guardrails: stop rules bind the AI, and the owner has a way out"
 for id in STOP-1 STOP-2 STOP-3 STOP-4 STOP-5 STOP-6 STOP-7; do
   grep -q "$id" CLAUDE.md || err "CLAUDE.md lost $id - the owner cannot review the work, so these are not optional"

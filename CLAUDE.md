@@ -118,11 +118,12 @@ Claude reads `package.json` for the details.
 
 ## Engineering Principles
 
-**Rules have stable IDs** — `TENANT-1`, `SEC-2`, `MONEY-1`, `PARITY-1`,
-`AUDIT-1`, `STRUCT-1`, `SCALE-1`, `A11Y-1`, `OPS-1` — so a review, a check
-failure, or a plan can cite one and you can resolve it without re-reading the
-file. `docs/CONTROLS.md` maps each to whatever actually enforces it, and says
-plainly which ones nothing enforces yet.
+**Rules have stable IDs** (`TENANT-1`, `SEC-2`, `MONEY-1`, `PIN-3`, …) so a
+review, a check failure, or a plan can cite one instead of quoting a
+paragraph. **Resolve any of them in `docs/CONTROLS.md` § The rule index** —
+one row each: the rule in a line, its canonical home, and whether it
+actually gates. IDs are stable and never renumbered, so a gap means an ID
+was retired. That file also says plainly which rules nothing enforces yet.
 
 ### Feature Planning
 - **Every feature names the friction it removes** — internal or external, per SCOPE.md § The friction. Can't name it? Scope creep.

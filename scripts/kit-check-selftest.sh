@@ -354,6 +354,15 @@ case_run 18 "MONEY-4's test loses the two-connection requirement" \
   "one client serializes" \
   py_re testing-conventions.md 'two separate client instances' 'one client'
 
+# --- rule IDs must resolve ---------------------------------------------------
+case_run 21 "a rule ID is cited but has no index row" \
+  "absent from CONTROLS.md" \
+  sh -c "printf 'See MONEY-9 for the rounding rule.\n' >> docs/GLOSSARY.md"
+
+case_run 21 "the rule index is deleted" \
+  "lost its rule index" \
+  py_re docs/CONTROLS.md '## The rule index' '## Assorted notes'
+
 # ------------------------------------------------------------------ coverage --
 echo
 echo "coverage: kit-check steps with no mutation case here"

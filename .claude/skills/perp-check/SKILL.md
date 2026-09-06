@@ -122,6 +122,11 @@ dev-mode stub and for the assertion that must guard it:
 - If real login is live on both realms: `✓`.
 - If there is no auth code at all yet: `⊘ N/A — no auth module yet`.
 
+Every failure line prints its rule ID. **Tell the owner where to look:**
+"resolve any rule ID in `docs/CONTROLS.md` § The rule index". An ID with no
+resolution path is worse than no ID — it looks like something they should
+already know.
+
 ### Drift signals — report, never fail
 
 | Sensor | Command | Why it never gates |
