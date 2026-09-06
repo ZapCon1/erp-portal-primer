@@ -98,7 +98,18 @@ done
 
 echo "7. CLAUDE.md context budget (bytes — line counts hide long-line packing)"
 bytes=$(wc -c < CLAUDE.md)
-[ "$bytes" -le 27000 ] || err "CLAUDE.md is ${bytes}B (> 27000B budget) — move detail to docs/, leave pointers"
+[ "$bytes" -le 27000 ] || err "CLAUDE.md is ${bytes}B (> 27000B budget) — see CONTROLS.md § The context budget for the prune order, and do NOT just move bytes into docs/"
+# The cap above guards ONE file, and its obvious remedy - "move detail to
+# docs/" - relocates bytes into files with no cap that are all reached by a
+# MUST pointer. So report the pool too. A DRIFT SIGNAL, never a gate: a byte
+# count with a hard threshold is satisfied by three dishonest files instead
+# of one honest one.
+pool=0
+for f in secure_coding.md docs/MODULES.md docs/DOMAIN_MODEL.md docs/FEATURE_CATALOG.md          CLAUDE.md docs/STACK.md docs/CONTROLS.md docs/PORTAL_UX.md testing-conventions.md; do
+  [ -f "$f" ] && pool=$((pool + $(wc -c < "$f")))
+done
+echo "   (MUST-read pool: ${pool}B across 9 docs — drift signal, not a gate)"
+[ "$pool" -le 260000 ] || echo "::warning::the MUST-read pool is ${pool}B (>260000B) — prune before adding; CONTROLS.md § The context budget"
 
 echo "8. every feature plan doc is registered in the index"
 for f in features/*.md; do
@@ -425,6 +436,7 @@ for id in PIN-1 PIN-2 PIN-3 PIN-4 PIN-5; do
 done
 grep -q 'PIN-3' .claude/skills/perp-check/SKILL.md || err "/perp-check lost the toolchain contract (PIN-3/PIN-4)"
 grep -qi 'verify the artifact' .claude/skills/perp-check/SKILL.md || err "/perp-check lost the exit-code-is-not-proof rule (create-next-app exits 0 having done nothing)"
+grep -q 'The context budget' docs/CONTROLS.md   || err "CONTROLS.md lost the prune order - at the byte cap the only sanctioned move would again be relocating bytes into uncapped MUST-read docs"
 grep -qi 'upgrade drill' docs/CONTROLS.md || err "CONTROLS.md lost the upgrade drill"
 # PIN-5, enforced on the kit's own stack record. STACK.md has declared this
 # convention since 0.19.0 and nothing checked it until now.
@@ -450,18 +462,6 @@ except Exception as e:
 PY2
 fi
 
-
-echo "21. every rule ID in the kit resolves in CONTROLS.md's index"
-# CLAUDE.md promises an ID can be cited and resolved without re-reading the
-# file. That failed on the first try: PARITY-1 occurred exactly once in the
-# whole kit - inside the sentence claiming IDs were resolvable. An ID with no
-# index row is a citation to nothing.
-grep -q '## The rule index' docs/CONTROLS.md || err "CONTROLS.md lost its rule index - IDs stop resolving"
-unresolved=""
-for id in $(grep -rhoE '(TENANT|SEC|MONEY|PARITY|AUDIT|STRUCT|SCALE|A11Y|OPS|DOC|QUAL|CUI|PIN|STOP|TEST|DEP|GH)-[0-9]+' --include='*.md' --exclude-dir=reviews . | sort -u); do
-  grep -qE "^\| \`$id\`" docs/CONTROLS.md || unresolved="$unresolved $id"
-done
-[ -z "$unresolved" ] || err "rule IDs used but absent from CONTROLS.md's index:$unresolved"
 
 echo "20. novice guardrails: stop rules bind the AI, and the owner has a way out"
 for id in STOP-1 STOP-2 STOP-3 STOP-4 STOP-5 STOP-6 STOP-7; do
@@ -497,6 +497,18 @@ grep -qi 'Never weaken a test to make it pass' CLAUDE.md   || err "CLAUDE.md los
 grep -qiE '(may|can|ok to|fine to|acceptable to) weaken a test' CLAUDE.md   && err "STOP-2 has been INVERTED in CLAUDE.md - a test-weakening permission is not a rule"
 grep -qi 'Two failures at the same step = stop' CLAUDE.md   || err "CLAUDE.md lost the STOP-1 sentence (two failures at the same step = stop)"
 grep -qi 'Never report done from an exit code' CLAUDE.md   || err "CLAUDE.md lost the STOP-6 sentence (never report done from an exit code)"
+
+echo "21. every rule ID in the kit resolves in CONTROLS.md's index"
+# CLAUDE.md promises an ID can be cited and resolved without re-reading the
+# file. That failed on the first try: PARITY-1 occurred exactly once in the
+# whole kit - inside the sentence claiming IDs were resolvable. An ID with no
+# index row is a citation to nothing.
+grep -q '## The rule index' docs/CONTROLS.md || err "CONTROLS.md lost its rule index - IDs stop resolving"
+unresolved=""
+for id in $(grep -rhoE '(TENANT|SEC|MONEY|PARITY|AUDIT|STRUCT|SCALE|A11Y|OPS|DOC|QUAL|CUI|PIN|STOP|TEST|DEP|GH)-[0-9]+' --include='*.md' --exclude-dir=reviews . | sort -u); do
+  grep -qE "^\| \`$id\`" docs/CONTROLS.md || unresolved="$unresolved $id"
+done
+[ -z "$unresolved" ] || err "rule IDs used but absent from CONTROLS.md's index:$unresolved"
 
 echo "exit: $fail"
 exit $fail

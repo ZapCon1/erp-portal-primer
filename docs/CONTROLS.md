@@ -329,6 +329,41 @@ here that a human has to satisfy rather than a check.
 
 ---
 
+## The context budget — what to cut, in order
+
+`CLAUDE.md` has a hard 27,000-byte cap (kit-check 7). Nothing capped the
+**pool of documents it points at as MUST or canonical**, which is where the
+bytes go when you follow the cap's own advice to "move detail to `docs/`".
+That pool is roughly **230KB — about 57K tokens** — and every file in it is
+reached by a pointer, so relocating bytes out of `CLAUDE.md` can make the
+session *worse* while making the measured number better.
+
+So the pool is reported as a **drift signal**, never a gate: a byte count
+with a hard threshold is satisfied by splitting one honest file into three
+dishonest ones (§ Why some rules must never gate).
+
+**When `CLAUDE.md` hits its cap, prune in this order** — this list exists so
+the answer is not invented under pressure:
+
+1. **The Bootstrap block.** It is designed to be deleted once its items are
+   done, and it is the largest self-declared-temporary section in the file.
+   Adopters: this is your first cut. (The kit itself must ship it, so the
+   kit's own headroom is permanently smaller than yours.)
+2. **Restatements of canonical content.** `CLAUDE.md` mirrors the stack
+   pins, several invariants, and security rules it also declares
+   non-canonical. Replace the copy with the pointer — but keep the pin
+   keystones, which kit-check 6 requires mirrored on purpose.
+3. **Anything with an ID.** A rule with a stable ID can be cited rather than
+   restated: `docs/CONTROLS.md` § The rule index resolves it in one row.
+4. **Examples and rationale.** Keep the rule, move the "why" to the doc that
+   owns it. The model needs the constraint; the human needs the reasoning,
+   and the human can follow a link.
+
+**What never gets cut to save bytes**: the `STOP-*` rules, the tenancy rule,
+and the money rules. If those do not fit, the file has other problems.
+
+---
+
 ## Why some rules must never gate
 
 Gating the wrong thing is worse than not gating, because it teaches people to

@@ -4,6 +4,134 @@ All notable changes to the primer. Adopters: record the version you
 adopted in your repo (see README § How to adopt) so you can diff
 against future releases.
 
+## 0.21.0 — 2026-09-06
+
+**The controls become controls.** A second 16-perspective panel review —
+scoped to guardrails, the module system, and stack guardrails — found that
+0.20.0 had shipped a control *map* that overstated itself: ten rows of
+`docs/CONTROLS.md` claimed to gate "in CI" while the CI the kit ships
+implemented one of them. Worse, the checks written to fix the previous
+round's "four checks could not fail" had reintroduced the same class. This
+release is the response, and the centrepiece is a harness that makes the
+class detectable instead of recurring.
+
+### The systemic fix
+
+- **New `scripts/kit-check-selftest.sh`.** Snapshots the working tree,
+  asserts the unmutated copy is green, then applies **50 mutations** that
+  each break exactly one thing kit-check claims to guard. Every mutation
+  must turn kit-check red *and* produce the error that names it — going red
+  for the wrong reason is reported as a check firing by accident, not a
+  pass. A coverage report names any check with no mutation case. All checks
+  are covered. It runs in CI.
+- The rule it enforces: **a check with no mutation case is a check nobody
+  has shown can fire.**
+
+### SEC-2 — the dev-auth stub
+
+- **The shipped assertion failed OPEN.** `NODE_ENV === 'production' && stub`
+  needs both conjuncts, so an unset, misspelled or `staging` `NODE_ENV`
+  booted the stub silently — a real staff session and a real portal POC
+  bound to a live `clientId`. On the pinned deploy `NODE_ENV` is a variable
+  someone remembers to set, not a platform guarantee. Now fail-closed.
+- `/perp-check` gated on the assertion's *presence*, so it passed on the
+  broken polarity. It now reads the guard's direction.
+- kit-check's receipt was `grep -qi 'refus'`, satisfied by an unrelated
+  sentence elsewhere in the file. Deleting the entire security spine exited
+  0. Now asserts artifact strings, and the selftest proves it fires.
+
+### GitHub guardrails — new `docs/GITHUB.md`
+
+- The kit had **none**: no mention of branch protection, required status
+  checks, CODEOWNERS, Dependabot, push protection, or token scoping. A red
+  build blocked nothing. Six settings, click path and `gh` command each,
+  including `enforce_admins` (without it the rule skips a solo owner) and a
+  deploy gated by both `needs:` and an environment reviewer.
+- **`GH-1`: a check that cannot block a merge is a report, not a gate.**
+- kit-check no longer executes the SessionStart hook string on
+  `pull_request` events — that string arrives from the contributor's branch.
+  The workflow declares `permissions: contents: read`.
+
+### Honesty in the control map
+
+- The `Gates?` column became **`Gates today?` + `To make it gate`**, filled
+  from what is actually shipped.
+- Compliance tables gained a **Status** column. Their imperative voice read
+  as coverage to the reader who lands on that header; all eleven rows say
+  "not built yet".
+- **`CUI-1`'s claim** to cover error tracking, CDNs and LLM tooling "with
+  one predicate" was false for all three; each is now named with its own
+  control.
+- `OPS-3`, `STOP-1..7`, `PARITY-1` and the GitHub gates joined the
+  no-sensor table — they were in neither, so an audit of "what's
+  unenforced?" concluded they were covered.
+
+### New: `docs/CONTROLS.md` § The rule index
+
+- Every one of the kit's **48 rule IDs** in one table: the rule in a line,
+  its canonical home, whether it gates. `CLAUDE.md` had promised IDs were
+  resolvable while listing nine of them, and `PARITY-1` occurred exactly
+  once in the kit — inside that promise. Check 21 enforces it.
+
+### The build path produces what the docs promise
+
+- `/perp-build-core` now provisions `File.classification` (an enum
+  superseding the boolean `exportControlled`, which could not tell CUI from
+  export-controlled), the egress-gate boolean, `SCALE-1` composite indexes,
+  and a fail-closed **`TENANT-1`** mechanism — with the RLS footgun written
+  down: the tenant id must be set inside an interactive transaction or it
+  persists on the pooled connection and the next request inherits it.
+- It also emits the Dockerfile, `/api/health`, standalone output and a
+  throwing env check that `docs/runbooks/deploy.md` had always assumed.
+  `Dockerfile` had appeared nowhere in the kit.
+- **`MONEY-4`** was a published CI gate nothing created. `/perp-setup-testing`
+  now scaffolds the stubs, and `testing-conventions.md` defines the word the
+  test rested on: two interactive transactions on one client *serialize*,
+  which passes against the broken implementation the rule exists to catch.
+
+### The module contract gets an owner
+
+- `MODULES.md` named `/perp-feature` as the carrier; `/perp-feature` did not
+  contain the word "module". `features/_TEMPLATE.md` now has the contract as
+  a table, `/perp-feature` fills it, and an **11th declaration** covers
+  indexes and row growth.
+
+### STOP-8
+
+- **A stop rule is never waived by a tracked file.** `/perp-push` forbade
+  file-sourced confirmation in one bullet and designated `CLAUDE.md` as the
+  standing opt-out in the next — one appended line meant unconditional
+  pushing to a public remote. The waiver moved to an untracked marker.
+
+### Adopter experience
+
+- **New `scripts/README.md`** ends the delete-vs-keep contradiction (three
+  of four instructions said "delete") with a table of which checks are the
+  primer's bookkeeping and which bind the adopter's repo.
+- kit-check stopped lying in degraded environments: a missing `python3`
+  produced three **false** failures blaming the adopter's documents plus one
+  silent skip; no `git` blamed their `.gitignore`. Both now warn and skip.
+- Probes no longer leave a stub `docs/SCOPE.md` on interrupt — which
+  permanently silenced onboarding for someone never scoped.
+- Contents blocks on `MODULES.md` and `CONTROLS.md`; the glossary gained the
+  control vocabulary (guide, sensor, gate, drift signal, dimension, pin).
+- The dependency graph's only integration edge descended from Accounting
+  while the text inside it said "attach to the spine". Redrawn with
+  directions.
+- `OPS-1`'s check could never fire in the shipped kit; it now asserts shape
+  once `package.json` exists.
+- A **prune order** for the context budget: the byte cap guards one file and
+  its own remedy relocated bytes into uncapped MUST-read docs. The pool
+  (~230KB) is now reported as a drift signal, never a gate.
+
+### Fixed
+
+- `docs/STACK.md` spliced sentence; `docs/PORTAL_UX.md` severed div-button
+  prohibition; the muted neutral measured **4.45:1** on the surface token,
+  failing that document's own 4.5:1 rule (now 5.0:1).
+
+---
+
 ## 0.20.0 — 2026-09-05
 
 **Modules, deployment targets, and a verification layer that can actually
