@@ -13,6 +13,16 @@ err() { echo "::error::$1"; fail=1; }
 # into three FALSE failures blaming the adopter's own documents, plus one control
 # that vanished with no output at all. A skip must announce itself.
 PY=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)
+# The SessionStart hook string is executable shell that kit-check runs live to
+# prove the hook fires. On a pull_request that string arrives from the
+# CONTRIBUTOR'S branch, so running it would make CI a shell for anyone who can
+# open a PR. Static shape assertions still run; only the live-fire is skipped.
+KC_ALLOW_EXEC=1
+if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ]; then
+  KC_ALLOW_EXEC=0
+  echo "::warning::pull_request event — hook live-fire probes SKIPPED (untrusted branch content)"
+fi
+
 [ -n "$PY" ] || echo "::warning::no python3 on PATH — checks 9, 13 and 19 are SKIPPED, not passed"
 
 # Probes below write real files into the repo. Without this trap a Ctrl-C between
@@ -219,8 +229,8 @@ fi
 # Silence is what a BROKEN hook produces too, so proving only the quiet branch
 # would stay green while every adopter got a dead session. Assert it fires.
 if [ -n "${HOOKCMD:-}" ] || HOOKCMD=$("$PY" -c "import json;print(json.load(open('.claude/settings.json',encoding='utf-8'))['hooks']['SessionStart'][0]['hooks'][0]['command'])" 2>/dev/null); then :; fi
-if [ -z "$PY" ]; then
-  echo "::warning::hook live-fire probe skipped — no python3"
+if [ -z "$PY" ] || [ "$KC_ALLOW_EXEC" = "0" ]; then
+  [ -n "$PY" ] || echo "::warning::hook live-fire probe skipped — no python3"
 elif [ -n "${HOOKCMD:-}" ] && [ ! -e docs/SCOPE.md ] && [ ! -e docs/SCOPE.draft.md ] && [ ! -e package.json ]; then
   timeout 10 sh -c "$HOOKCMD" 2>/dev/null | "$PY" -c "
 import sys, json
@@ -243,7 +253,7 @@ fi
 # an adopted repo's scope doc is not ours to clobber. There, the hook is already proven
 # silent by the fact that nothing nagged.
 HOOKCMD=$("$PY" -c "import json;print(json.load(open('.claude/settings.json',encoding='utf-8'))['hooks']['SessionStart'][0]['hooks'][0]['command'])" 2>/dev/null)
-if [ -n "$HOOKCMD" ] && [ ! -e docs/SCOPE.md ]; then
+if [ -n "$HOOKCMD" ] && [ "$KC_ALLOW_EXEC" = "1" ] && [ ! -e docs/SCOPE.md ]; then
   printf '# kit-check probe\n' > docs/SCOPE.md
   out=$(sh -c "$HOOKCMD" 2>/dev/null)
   rm -f docs/SCOPE.md
@@ -354,6 +364,19 @@ grep -qi 'Transactional email' docs/MODULES.md || err "MODULES.md lost the trans
 grep -qiE 'SPF|DKIM' docs/MODULES.md || err "email module lost the domain-verification setup path"
 grep -qi 'magic link' docs/MODULES.md || err "email module no longer says portal login depends on it"
 grep -qi 'DNS' README.md || err "README step 0 lost the DNS lead-time warning"
+
+# GH-*: CI that cannot block a merge is a report, not a gate. These live in
+# GitHub's settings, so no check in this repo can see them - the doc is the
+# only carrier and it must at least still exist and be reachable.
+[ -f docs/GITHUB.md ] || err "docs/GITHUB.md missing - nothing tells the owner how to make a red build block a merge"
+grep -q 'docs/GITHUB\.md' README.md || err "docs/GITHUB.md not listed in README"
+grep -q 'docs/GITHUB\.md' docs/CONTROLS.md || err "CONTROLS.md does not point at the GitHub-side gates"
+grep -qi 'required status check' docs/GITHUB.md || err "GITHUB.md lost the required-status-checks step (GH-2) - the one that actually gates"
+grep -qi 'enforce_admins' docs/GITHUB.md || err "GITHUB.md lost enforce_admins - without it the rule does not apply to a solo owner"
+grep -qi 'push protection' docs/GITHUB.md || err "GITHUB.md lost secret-scanning push protection (GH-3)"
+grep -qi 'pull_request_target' docs/GITHUB.md || err "GITHUB.md lost the fork-PR warning (GH-8)"
+grep -qE '^permissions:' .github/workflows/kit-check.yml || err "kit-check workflow lost its least-privilege permissions block (GH-5)"
+grep -q 'kit-check-selftest' .github/workflows/kit-check.yml || err "CI no longer proves the checks can fail"
 
 
 echo "19. idiom-churn guardrails (PIN-*) and the stack review stamp"

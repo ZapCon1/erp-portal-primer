@@ -1,14 +1,40 @@
 # Consistency checks for the PRIMER'S OWN cross-references.
-# The checks live in scripts/kit-check.sh (same file runs locally).
-# Adopters: delete this workflow + scripts/, or adapt if you renamed perp-.
+# The checks live in scripts/kit-check.sh (the same file runs locally).
+# Adopters: see scripts/README.md — some of these bind YOUR repo, not just ours.
+#
+# For this to gate anything, the job name below must be added as a REQUIRED
+# status check on the default branch. A red run blocks no merge by default:
+# docs/GITHUB.md § 1.
 name: kit-check
+
 on:
   push:
   pull_request:
 
+# Least privilege. A pull request from a fork runs with whatever is granted
+# here, so it is granted almost nothing. Never widen this to add secrets, and
+# never switch to pull_request_target (docs/GITHUB.md § Fork pull requests).
+permissions:
+  contents: read
+
 jobs:
-  consistency:
+  kit-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - run: bash scripts/kit-check.sh
+
+      # Explicit rather than relying on the runner image: three checks need an
+      # interpreter, and a missing one must be a loud skip, not a silent pass.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Consistency checks
+        run: bash scripts/kit-check.sh
+
+      # A guardrail that cannot fail is worse than none. This mutates a copy of
+      # the repo and asserts kit-check goes red for each break — so a check that
+      # has quietly stopped working fails HERE rather than years later.
+      - name: Prove the checks can actually fail
+        run: bash scripts/kit-check-selftest.sh

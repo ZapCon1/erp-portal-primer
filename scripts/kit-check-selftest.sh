@@ -46,7 +46,9 @@ pass=0; failed=0; declare -a COVERED=()
 mkdir -p "$W/base"
 # NB: `python -` would take its program from stdin, so the file list cannot also
 # arrive there. Plain bash, and NUL-delimited so paths with spaces survive.
-git ls-files -z | while IFS= read -r -d '' f; do
+# --cached --others --exclude-standard = tracked PLUS untracked-but-not-ignored,
+# so a file added this session is tested before it is committed, not after.
+git ls-files -z --cached --others --exclude-standard | while IFS= read -r -d '' f; do
   [ -f "$f" ] || continue
   mkdir -p "$W/base/$(dirname "$f")"
   cp "$f" "$W/base/$f"
@@ -112,7 +114,23 @@ PYX
 case_run() {
   local chk="$1" name="$2" expect="$3"; shift 3
   COVERED+=("$chk")
-  rm -rf "$W/m"; cp -r "$W/base" "$W/m"
+
+  # A PARTIAL copy would make the mutation land on a file kit-check never reads,
+  # and this harness would then report "the check cannot fail" — the exact false
+  # signal it exists to prevent. Verify the copy before trusting any verdict.
+  rm -rf "$W/m"
+  if ! cp -r "$W/base" "$W/m" 2>"$W/cp.err"; then
+    echo "  ! $name — COPY FAILED, verdict withheld"
+    sed 's/^/      /' "$W/cp.err"
+    failed=$((failed+1)); return
+  fi
+  local n_base n_mut
+  n_base=$(find "$W/base" -type f -not -path '*/.git/*' | wc -l)
+  n_mut=$(find "$W/m"    -type f -not -path '*/.git/*' | wc -l)
+  if [ "$n_base" -ne "$n_mut" ]; then
+    echo "  ! $name — INCOMPLETE COPY ($n_mut of $n_base files), verdict withheld"
+    failed=$((failed+1)); return
+  fi
 
   if ! ( cd "$W/m" && "$@" ) 2>"$W/setup.err"; then
     echo "  ✗ $name — MUTATION SETUP FAILED (the thing it breaks may have moved)"
@@ -260,6 +278,23 @@ case_run 17 "MODULES.md loses the Toolpath millimetres warning (a 25.4x price er
 case_run 18 "STACK.md loses the Prisma 7 config change (first-migration P1012)" \
   "P1012" \
   py_re docs/STACK.md 'prisma\.config\.ts' 'schema.prisma'
+
+# --- GitHub-side gates (they live in settings, so the doc is the only carrier) --
+case_run 18 "the GitHub gating doc is deleted" \
+  "nothing tells the owner how to make a red build block a merge" \
+  rm -f docs/GITHUB.md
+
+case_run 18 "GITHUB.md loses enforce_admins (the rule then skips the solo owner)" \
+  "enforce_admins" \
+  py_re docs/GITHUB.md 'enforce_admins' 'admins_exempt'
+
+case_run 18 "the CI workflow loses its least-privilege permissions block" \
+  "least-privilege permissions" \
+  py_re .github/workflows/kit-check.yml '(?m)^permissions:' '# permissions removed:'
+
+case_run 18 "CI stops running the selftest (checks could rot unnoticed)" \
+  "no longer proves the checks can fail" \
+  py_re .github/workflows/kit-check.yml 'kit-check-selftest' 'kit-check-disabled'
 
 # ------------------------------------------------------------------ coverage --
 echo

@@ -43,36 +43,53 @@ and hasn't is listed as such, honestly.
 `/perp-check` runs this column and reports every line, including the ones
 that aren't installed.
 
-| Sensor | Enforces | Where it runs | **Gates?** |
-|---|---|---|---|
-| Type check | — | agent loop, pre-push, CI | **yes** |
-| Unit tests | `TEST-*`, `TENANT-1` (isolation tests) | agent loop, pre-push, CI | **yes** |
-| Dependency audit | `DEP-1` | CI | **yes** |
-| Build | — | CI, pre-deploy | **yes** |
-| **Dev-auth assertion** | `SEC-2` | app startup, `/perp-check`, CI | **yes** |
-| Migration one-shot exit 0 | `OPS-2` | deploy | **yes** |
-| Integrity construct tests | `MONEY-4` | CI | **yes** |
-| Accessibility scan | `A11Y-1` | CI, once a portal view exists | **yes** *(once live)* |
-| Exact-pin + lockfile check | `PIN-1`, `PIN-2` | `/perp-check`, CI | **yes** |
-| Toolchain contract | `PIN-3`, `PIN-4` | `/perp-check`, CI | **yes** |
-| Stack review freshness | `PIN-5` | `/perp-check`, kit-check | no — drift signal |
-| Controlled-file egress gate | `CUI-1` | every outbound call, CI | **yes** *(once any file is flagged)* |
-| Released-revision immutability | `DOC-1` | DB + app, CI | **yes** *(once doc control ships)* |
-| Approval-before-release | `DOC-2` | app, CI | **yes** *(once doc control ships)* |
-| Flagged-file access audit | `CUI-2` | every file read, CI | **yes** *(once any file is flagged)* |
-| Coverage | `TEST-2` | CI, reported | no — drift signal |
-| Complexity / file size | `STRUCT-1` | reported | no — drift signal |
-| `/perp-review-parity` | `PARITY-*` | before every release | no — inferential |
-| `/perp-review-code` | `STRUCT-*`, `SCALE-*` | on request | no — inferential |
-| `/perp-review-testing` | `TEST-*` | on request | no — inferential |
-| `/panel-review` | everything | pre-release, on request | no — inferential |
+| Sensor | Enforces | Where it runs | **Gates today?** | To make it gate |
+|---|---|---|---|---|
+| Type check | — | agent loop, pre-push, CI | **yes** | — |
+| Unit tests | `TEST-*`, `TENANT-1` (isolation tests) | agent loop, pre-push, CI | **yes** | — |
+| Dependency audit | `DEP-1` | CI | **yes** | — |
+| Build | — | CI, pre-deploy | **yes** | — |
+| **Dev-auth assertion** | `SEC-2` | app startup | **yes, at boot** | it refuses to start; a CI step asserting the guard's *polarity* is not written yet |
+| Migration one-shot exit 0 | `OPS-2` | deploy | by the runbook | automate it in the deploy job |
+| Integrity construct tests | `MONEY-4` | — | **no — nothing creates them** | `/perp-setup-testing` must scaffold the two concurrency stubs |
+| Accessibility scan | `A11Y-1` | CI slot, commented out | **no — not enabled** | uncomment the `pa11y-ci` step once a portal view exists |
+| Exact-pin + lockfile check | `PIN-1`, `PIN-2` | `/perp-check` | on request only | add the step to `ci.yml` |
+| Toolchain contract | `PIN-3`, `PIN-4` | `/perp-check` | on request only | add the step to `ci.yml` |
+| Stack review freshness | `PIN-5` | `/perp-check`, kit-check | no — drift signal | never; a date is not a gate |
+| Controlled-file egress gate | `CUI-1` | — | **no — not built** | the `File.classification` column + the uploader check (§ Compliance) |
+| Released-revision immutability | `DOC-1` | — | **no — not built** | ships with the Doc Control module |
+| Approval-before-release | `DOC-2` | — | **no — not built** | ships with the Doc Control module |
+| Flagged-file access audit | `CUI-2` | — | **no — not built** | ships with the Doc Control module |
+| Coverage | `TEST-2` | CI, reported | no — drift signal | never (§ Why some rules must never gate) |
+| Complexity / file size | `STRUCT-1` | reported | no — drift signal | never |
+| `/perp-review-parity` | `PARITY-*` | before every release | no — inferential | never |
+| `/perp-review-code` | `STRUCT-*`, `SCALE-*` | on request | no — inferential | never |
+| `/perp-review-testing` | `TEST-*` | on request | no — inferential | never |
+| `/panel-review` | everything | pre-release, on request | no — inferential | never |
+
+> **Read the fourth column literally.** It says what stops a bad change
+> *today*, in this repo, with what is actually shipped — not what the design
+> intends. An earlier version of this table marked ten rows "CI | **yes**"
+> when the CI template implemented one of them, which is the precise failure
+> this file exists to prevent, committed by this file.
+
+### Gating a merge is a GitHub setting, not a CI step
+
+Even a **yes** above only blocks a *push* (via the pre-push hook, which
+`--no-verify` skips). Making it block a **merge** or a **deploy** requires
+repository settings that live in GitHub, where no check in this repo can see
+them: required status checks, `enforce_admins`, and a deploy environment
+with a required reviewer.
+
+**`GH-1`: a check that cannot block a merge is a report, not a gate.**
+`docs/GITHUB.md` is the six-step setup, and confirming it is a go-live line.
 
 ### Rules with no sensor yet
 
 Named here so they stay visible instead of feeling covered. Each is a
 candidate for promotion, and `/perp-check` reports the honest gap.
 
-| Rule | Currently enforced by | Could be a sensor |
+| Rule | Currently enforced by | To fix it |
 |---|---|---|
 | `TENANT-1` tenant filter on every portal query | discipline + tests + review | **Yes — and it should be.** Postgres RLS, or a Prisma client extension that requires a tenant argument on scoped models. See the note below. |
 | `MONEY-1` integer minor units | review | Yes — a schema lint rejecting float/decimal money columns |
@@ -87,7 +104,11 @@ candidate for promotion, and `/perp-check` reports the honest gap.
 | `QUAL-1` scrap + rework + shipped reconcile against qty ordered | prose | **Yes, and it is a money rule** — one arithmetic identity, testable |
 | `CUI-3` audit records retained for the contracted period | prose | Yes — a retention setting plus a check that it is set |
 | `CUI-4` MFA on privileged access | go-live checklist | Yes, once real login lands |
-| `CUI-5` delete sanitizes rather than soft-deletes flagged data | prose | Yes — a test that the row and the object are gone |
+| `CUI-5` delete sanitizes rather than soft-deletes flagged data | prose | Write a test that the row and the object are gone |
+| `OPS-3` error tracking + uptime, one alert reaching a human | a go-live checkbox | Name one uptime poller and one error tracker in `docs/runbooks/deploy.md`; the acceptance test is **send one test alert and confirm a human got it** |
+| `STOP-1..7` the rules binding the assistant when the owner cannot review the work | prose in `CLAUDE.md`, read by the model | Nothing computational can verify the model obeyed them. kit-check asserts the *sentences* survive (and tripwires their inversion); the owner-facing detector is `docs/WHEN-IT-GOES-WRONG.md` § Warning signs. **Treat these as the least-enforced rules in the kit, not the most** |
+| `PARITY-1` the two surfaces compute every shared number identically | one shared `lib/` helper, by discipline | `/perp-review-parity` is inferential. A real sensor is a test that calls the same helper from both surfaces and asserts equality |
+| `GH-2`/`GH-6` a red build blocks the merge and the deploy | **nothing in this repo** — they are GitHub settings | Work through `docs/GITHUB.md`, then open one throwaway PR with a deliberate break and confirm the merge button is disabled |
 
 ⚠️ **On `TENANT-1` specifically.** Earlier versions of this kit asserted that
 no ORM-level safety net exists for tenant isolation. That is not true on the
@@ -117,24 +138,33 @@ files means classifying them by hand, from memory.
 
 ### AS9100 document control
 
-| Rule | What must enforce it |
-|---|---|
-| `DOC-1` A released revision is immutable | The same belt-and-braces as invoices: app-level hook **and** a DB constraint. Editing a released rev in place is how a controlled document quietly becomes uncontrolled. |
-| `DOC-2` Release requires every named approval | Blocked in the state machine, tested. `draft → in-review → released` cannot skip. |
-| `DOC-3` Superseded revisions are retained | Delete is refused, not soft-flagged. An auditor asks for rev B after rev C shipped. |
-| `DOC-4` Prints are stamped and logged | Render asserts rev + timestamp + "uncontrolled when printed". |
-| `DOC-5` The app owns the rev letter | If files live in Box/Dropbox/SharePoint, their native version history is **not** the record (`docs/MODULES.md` § File storage). |
-| `QUAL-1` Quantities reconcile | ordered = shipped + scrapped + reworked-out. A drift here bills a customer for parts they never got — a `MONEY-1` failure wearing a quality costume. |
+**Status is the third column, and it is the one to read first.** This section
+describes what these controls must be. Nothing below is built yet — it ships
+with the Doc Control module. An imperative sentence is a specification, not a
+receipt.
+
+| Rule | What must enforce it | Status |
+|---|---|---|
+| `DOC-1` A released revision is immutable | The same belt-and-braces as invoices: app-level hook **and** a DB constraint. Editing a released rev in place is how a controlled document quietly becomes uncontrolled. | not built yet |
+| `DOC-2` Release requires every named approval | Blocked in the state machine, tested. `draft → in-review → released` cannot skip. | not built yet |
+| `DOC-3` Superseded revisions are retained | Delete is refused, not soft-flagged. An auditor asks for rev B after rev C shipped. | not built yet |
+| `DOC-4` Prints are stamped and logged | Render asserts rev + timestamp + "uncontrolled when printed". | not built yet |
+| `DOC-5` The app owns the rev letter | If files live in Box/Dropbox/SharePoint, their native version history is **not** the record (`docs/MODULES.md` § File storage). | not built yet |
+| `QUAL-1` Quantities reconcile | ordered = shipped + scrapped + reworked-out. A drift here bills a customer for parts they never got — a `MONEY-1` failure wearing a quality costume. | not built yet |
 
 ### ITAR/EAR and CMMC/CUI
 
-| Rule | What must enforce it |
-|---|---|
-| `CUI-1` Flagged data never reaches a third party | The integration scaffold's `mayReceiveControlledData`, **default false**, checked at the uploader — not filtered downstream and not left to the operator. This is the single highest-leverage control in the kit: it covers Toolpath, hosted converters, error tracking, email, CDNs and LLM tooling with one predicate. |
-| `CUI-2` Every access to a flagged file is audit-logged | And a presigned URL is a **bearer credential the object store serves without telling your app** — so flagged files are proxied through the app, or issued single-use URLs whose *issuance* is the logged event (`docs/STACK.md` § Part viewing). |
-| `CUI-3` Audit records are retained and protected | Retention is a decision, not a default. Write it down and check it is set. |
-| `CUI-4` MFA on privileged access | Lands with real login (`SEC-2`), not after. |
-| `CUI-5` Delete means gone | Sanitization, not a soft-delete flag — the row *and* the stored object. |
+**Status column again — read it before the prose.** The classification field
+and the egress gate are the two that must exist in the first migration;
+neither is written by `/perp-build-core` yet.
+
+| Rule | What must enforce it | Status |
+|---|---|---|
+| `CUI-1` Flagged data never reaches a third party | The integration scaffold's `mayReceiveControlledData`, **default false**, checked at the uploader — not filtered downstream and not left to the operator. It is the highest-leverage control in the kit, and its reach has a hard edge. It gates **deliberate, app-initiated transfers of a classified `File` to a registered provider**: Toolpath, hosted converters, email attachments, file-storage sync. It structurally **cannot** gate three paths people assume it does — an **error tracker** (an SDK auto-captures payloads and stack locals; there is no uploader and no connection record in that path — scrub at `beforeSend`, or self-host), a **CDN or presigned URL** (infrastructure the object store serves directly — for flagged files the app-proxy path in `CUI-2` is the only compliant option, not an alternative), and **LLM/assistant tooling** (it reads the repo on the owner's machine, outside the app entirely — the control is the rule in `docs/WHEN-IT-GOES-WRONG.md`: never open a controlled drawing in the repo the assistant reads). | not built yet |
+| `CUI-2` Every access to a flagged file is audit-logged | And a presigned URL is a **bearer credential the object store serves without telling your app** — so flagged files are proxied through the app, or issued single-use URLs whose *issuance* is the logged event (`docs/STACK.md` § Part viewing). | not built yet |
+| `CUI-3` Audit records are retained and protected | Retention is a decision, not a default. Write it down and check it is set. | not built yet |
+| `CUI-4` MFA on privileged access | Lands with real login (`SEC-2`), not after. | not built yet |
+| `CUI-5` Delete means gone | Sanitization, not a soft-delete flag — the row *and* the stored object. | not built yet |
 
 ⚠️ **The honest limit of all of this.** These controls make compliance
 *achievable*; they do not confer it. You still owe a system security plan, a
@@ -271,4 +301,10 @@ and a gate that disappears when a checklist is tidied away was never a gate.**
 - [ ] `A11Y-1` Accessibility scan wired and green, and one keyboard-only pass
       through the portal.
 - [ ] Incident-response and deploy runbooks filled — no `<TODO>` left.
+- [ ] `GH-2` Required status checks on the default branch, `enforce_admins`
+      on — **verified by opening one PR with a deliberate break and seeing
+      the merge button disabled**, not by looking at the settings page.
+- [ ] `GH-3` Secret scanning + push protection enabled.
+- [ ] `GH-6` Deploy gated: the deploy job `needs:` the CI job, and the
+      `production` environment has a required reviewer.
 - [ ] `/perp-review-parity` clean.
