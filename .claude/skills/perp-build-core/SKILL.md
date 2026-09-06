@@ -138,14 +138,34 @@ scoping decision was already made in the interview; do not re-ask.
      the assertion in the auth module *in this pass*, not later:
 
      ```ts
-     if (process.env.NODE_ENV === 'production' && AUTH_MODE === 'dev') {
-       throw new Error('dev auth stub is active in production — refusing to start')
+     // Fail CLOSED. The stub runs only where something positively says
+     // it may. An unset, misspelled or unexpected NODE_ENV must STOP the
+     // boot, not permit it.
+     const DEV_AUTH_ALLOWED =
+       process.env.NODE_ENV === 'development' &&
+       process.env.ALLOW_DEV_AUTH === 'yes'
+
+     if (AUTH_MODE === 'dev' && !DEV_AUTH_ALLOWED) {
+       throw new Error(
+         'dev auth stub is active outside an explicitly allowed development ' +
+         'environment — refusing to start'
+       )
      }
      ```
 
-     Refuse to boot; never degrade to "log a warning". This is the one
-     line that turns a go-live checkbox into a control, and it costs
-     nothing today. `/perp-check` gates on its presence.
+     **The polarity is the whole control.** `if (NODE_ENV ===
+     'production' && stub)` is the wrong shape and is worse than
+     nothing: it boots the stub silently whenever `NODE_ENV` is unset,
+     misspelled, or `staging`. On this kit's pinned deploy — a
+     hand-written Dockerfile and compose — `NODE_ENV` is a variable
+     somebody remembers to set, **not a platform guarantee**. The
+     failure it produces is a real staff session and a real portal POC
+     bound to a live `clientId`, served to anyone who finds the URL.
+
+     Refuse to boot; never degrade to "log a warning". Add
+     `ALLOW_DEV_AUTH=yes` to `.env.example` (dev only) in this same
+     pass. `/perp-check` gates on the assertion **and on its
+     direction**.
    - What is NEVER acceptable, dev mode or not: a route without a
      wrapper, a portal query without a tenant filter, secrets in
      client bundles. Real login (both realms) is a **hard gate before

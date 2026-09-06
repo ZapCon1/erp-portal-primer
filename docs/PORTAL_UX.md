@@ -59,7 +59,8 @@ The rules below are this project's high-frequency subset — they are not a
 substitute for the standard. The EAA also expects a covered service to
 publish an **accessibility statement**; add that page before go-live.
 
-- **Semantic HTML**: real `<button>`, `<a>`, `<label>`, `<table>`
+- **Semantic HTML**: real `<button>`, `<a>`, `<label>`, `<table>` elements —
+  no div-buttons, no click-handlers on spans.
 - **Financial tables need more than `<table>`**: a `<caption>`, `<th scope>`
   on row and column headers, and header association — otherwise a screen
   reader reads invoice lines as a stream of unlabelled numbers.
@@ -73,8 +74,7 @@ publish an **accessibility statement**; add that page before go-live.
   tables are where this breaks, and the portal is explicitly a phone and
   shop-tablet surface.
 - **Per view**: a unique `<title>`, one `<h1>`, headings in order, a skip
-  link, and `<html lang>`. — no
-  div-buttons, no click-handlers on spans.
+  link, and `<html lang>`.
 - **Keyboard**: every action reachable and operable by keyboard; modals
   trap and restore focus; visible focus indicator.
 - **Forms**: every field labeled; validation errors programmatically
@@ -150,8 +150,10 @@ Spacing      4 8 12 16 24 32 48 64  (one 4px rhythm — no 5s, no 13s)
 Radius       6px controls · 10px cards
 Shadow       rest  0 1px 2px rgb(0 0 0 / .06)
              float 0 4px 12px rgb(0 0 0 / .10)
-Neutrals     #0F1115 ink · #3A4150 body · #6B7382 muted
+Neutrals     #0F1115 ink · #3A4150 body · #646B79 muted
              #E4E7EC border · #F6F7F9 surface · #FFFFFF card
+             (muted is 5.0:1 on surface, 5.4:1 on card — it must clear
+              4.5:1 on the SURFACE, not just on white)
 Semantic     success #0F7B4F · warning #9A6400 · danger #B3261E · info #1B5FB0
              (all ≥ 4.5:1 on white; pair every one with text or an icon)
 ```

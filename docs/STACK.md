@@ -284,7 +284,8 @@ Deploy runbook: `docs/runbooks/` (bootstrap checklist schedules it).
 
 ## Honest costs (know them going in)
 
-(a) **The upgrade treadmill is real, and it does not wait for you to be ready.** While testing the adoption flow on 2026-09-05 a clean `npm install prisma` pulled an 8.0.0 **release candidate**, because that is where Prisma's `latest` tag pointed — a restructured CLI that breaks three of this kit's own commands at once. Pin every load-bearing library to an exact version and check `dist-tags` before bumping; `latest` is not a promise of stability. More generally: : the per-concern table's
+(a) **The upgrade treadmill is real, and it does not wait for you to be ready.** While testing the adoption flow on 2026-09-05 a clean `npm install prisma` pulled an 8.0.0 **release candidate**, because that is where Prisma's `latest` tag pointed — a restructured CLI that breaks three of this kit's own commands at once. Pin every load-bearing library to an exact version and check `dist-tags` before bumping; `latest` is not a promise of stability. More generally, churn here is
+structural: the per-concern table's
 independently-versioned libraries plus a framework with a documented
 history of breaking transitions (Pages→App Router, async request APIs,
 caching semantics). Budget periodic migration work — it has a row in

@@ -112,6 +112,13 @@ dev-mode stub and for the assertion that must guard it:
   This is a gate. It does not get downgraded because the app "isn't deployed
   yet" — the whole failure mode is that the deploy happens later and nobody
   re-checks.
+- **Read the guard's direction, not just its existence.** A guard is
+  correct only if the **unset / unknown** case throws. Trace it: if
+  `NODE_ENV` were empty, would the stub boot? A guard predicated on
+  `NODE_ENV === 'production'` (or any positive test for a production-ish
+  value) fails open and is a `✗ FAIL — dev-auth guard fails open`, not a
+  `✓`. The passing shape asserts development positively and throws on
+  everything else.
 - If real login is live on both realms: `✓`.
 - If there is no auth code at all yet: `⊘ N/A — no auth module yet`.
 

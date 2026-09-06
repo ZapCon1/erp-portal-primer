@@ -8,6 +8,26 @@ set -uo pipefail
 fail=0
 err() { echo "::error::$1"; fail=1; }
 
+# One interpreter, resolved once. Bare `python` does not exist on stock macOS
+# (12.3+) or most Linux — only `python3`. Hard-coding it turned a missing binary
+# into three FALSE failures blaming the adopter's own documents, plus one control
+# that vanished with no output at all. A skip must announce itself.
+PY=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)
+[ -n "$PY" ] || echo "::warning::no python3 on PATH — checks 9, 13 and 19 are SKIPPED, not passed"
+
+# Probes below write real files into the repo. Without this trap a Ctrl-C between
+# the write and the rm leaves a stub docs/SCOPE.md, which permanently silences the
+# onboarding hook for someone who has never been scoped — the check breaking the
+# very thing it checks.
+KC_PROBE_SCOPE=0
+cleanup() {
+  [ "$KC_PROBE_SCOPE" = "1" ] && rm -f docs/SCOPE.md
+  rm -f reviews/.kit-check-probe.md
+  rmdir reviews 2>/dev/null || true
+  return 0
+}
+trap cleanup EXIT INT TERM
+
 # The changelog keeps old names/verdicts by convention — excluded where noted.
 HIST_EXCLUDE='CHANGELOG\.md'
 # reviews/ holds gitignored panel reports that quote kit strings verbatim, so
@@ -77,7 +97,8 @@ echo "9. section anchors resolve: '<file> § <Heading>' references"
 # not string equality. The old grep version was blind to backticked refs, matched
 # substrings anywhere in the file, and reported via echo inside a pipeline so it
 # could never fail the run.
-python - <<'PY' || err "one or more § anchors do not resolve to a heading"
+if [ -n "$PY" ]; then
+"$PY" - <<'PY' || err "one or more § anchors do not resolve to a heading"
 import os, re, sys
 try: sys.stdout.reconfigure(encoding="utf-8")
 except Exception: pass
@@ -137,6 +158,7 @@ for b in sorted(bad):
     print(f"::error::anchor: {b}")
 sys.exit(1 if bad else 0)
 PY
+fi
 
 echo "10. MODULES.md is registered and its dimension claim is mirrored"
 [ -f docs/MODULES.md ] || err "docs/MODULES.md missing (README and CLAUDE.md both point at it)"
@@ -172,7 +194,8 @@ grep -qiE 'govcloud|us-gov-(west|east)' docs/DEPLOYMENT_TARGETS.md || err "DEPLO
 grep -qiE 'never serverless|never-serverless' docs/STACK.md || err "STACK.md lost the never-serverless pin"
 
 echo "13. the auto-scope SessionStart hook is present, valid, and correctly gated"
-python - <<'PY' || err "SessionStart auto-scope hook is missing or malformed (see README § What's in here)"
+if [ -n "$PY" ]; then
+"$PY" - <<'PY' || err "SessionStart auto-scope hook is missing or malformed (see README § What's in here)"
 import json,sys
 try:
     s=json.load(open('.claude/settings.json',encoding='utf-8'))
@@ -188,11 +211,14 @@ for needle in ('docs/SCOPE.md','perp-scope','additionalContext','SessionStart'):
     if needle not in cmd:
         print(f"::error::SessionStart hook lost '{needle}'"); sys.exit(1)
 PY
+fi
 # Silence is what a BROKEN hook produces too, so proving only the quiet branch
 # would stay green while every adopter got a dead session. Assert it fires.
-if [ -n "${HOOKCMD:-}" ] || HOOKCMD=$(python -c "import json;print(json.load(open('.claude/settings.json',encoding='utf-8'))['hooks']['SessionStart'][0]['hooks'][0]['command'])" 2>/dev/null); then :; fi
-if [ -n "${HOOKCMD:-}" ] && [ ! -e docs/SCOPE.md ] && [ ! -e docs/SCOPE.draft.md ] && [ ! -e package.json ]; then
-  sh -c "$HOOKCMD" 2>/dev/null | python -c "
+if [ -n "${HOOKCMD:-}" ] || HOOKCMD=$("$PY" -c "import json;print(json.load(open('.claude/settings.json',encoding='utf-8'))['hooks']['SessionStart'][0]['hooks'][0]['command'])" 2>/dev/null); then :; fi
+if [ -z "$PY" ]; then
+  echo "::warning::hook live-fire probe skipped — no python3"
+elif [ -n "${HOOKCMD:-}" ] && [ ! -e docs/SCOPE.md ] && [ ! -e docs/SCOPE.draft.md ] && [ ! -e package.json ]; then
+  timeout 10 sh -c "$HOOKCMD" 2>/dev/null | "$PY" -c "
 import sys, json
 raw = sys.stdin.read().strip()
 if not raw:
@@ -212,7 +238,7 @@ fi
 # The probe writes a temp docs/SCOPE.md, so it NEVER runs where a real one exists —
 # an adopted repo's scope doc is not ours to clobber. There, the hook is already proven
 # silent by the fact that nothing nagged.
-HOOKCMD=$(python -c "import json;print(json.load(open('.claude/settings.json',encoding='utf-8'))['hooks']['SessionStart'][0]['hooks'][0]['command'])" 2>/dev/null)
+HOOKCMD=$("$PY" -c "import json;print(json.load(open('.claude/settings.json',encoding='utf-8'))['hooks']['SessionStart'][0]['hooks'][0]['command'])" 2>/dev/null)
 if [ -n "$HOOKCMD" ] && [ ! -e docs/SCOPE.md ]; then
   printf '# kit-check probe\n' > docs/SCOPE.md
   out=$(sh -c "$HOOKCMD" 2>/dev/null)
@@ -233,9 +259,15 @@ grep -q 'reviews/panel-review-' .claude/skills/panel-review/SKILL.md || err "pan
 grep -q 'docs/reviews' .claude/skills/panel-review/SKILL.md && err "panel-review still references the old docs/reviews path"
 # Prove git actually ignores it — an unmatched pattern is discovered only after a push.
 probe="reviews/.kit-check-probe.md"
-mkdir -p reviews && printf 'probe\n' > "$probe"
-git check-ignore -q "$probe" || err "git does not ignore $probe despite the .gitignore rule"
-rm -f "$probe"
+if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
+  mkdir -p reviews && printf 'probe\n' > "$probe"
+  git check-ignore -q "$probe" || err "git does not ignore $probe despite the .gitignore rule"
+  rm -f "$probe"
+  rmdir reviews 2>/dev/null || true
+else
+  # A ZIP download or a pre-`git init` adopter is not a broken .gitignore.
+  echo "::warning::not a git repository — the ignore-rule probe was SKIPPED, not passed"
+fi
 # The user-level copy shadows the project one; a stale copy silently writes to the old path.
 if [ -f "$HOME/.claude/skills/panel-review/SKILL.md" ]; then
   diff -q "$HOME/.claude/skills/panel-review/SKILL.md" .claude/skills/panel-review/SKILL.md >/dev/null 2>&1 \
@@ -255,7 +287,12 @@ grep -qi 'Go-live gates' docs/CONTROLS.md || err "CONTROLS.md lost the go-live g
 # The dev-auth stub is the highest-consequence rule in the kit; it must be a
 # control in three places, not a checkbox in one.
 grep -q 'SEC-2' docs/CONTROLS.md || err "CONTROLS.md lost the SEC-2 dev-auth gate"
-grep -qi 'refus' .claude/skills/perp-build-core/SKILL.md || err "/perp-build-core no longer emits the dev-auth startup assertion (SEC-2)"
+# NOT a word stem: 'refus' also matches an unrelated resume sentence in the
+# same file, so the old check passed with the whole security spine deleted.
+grep -q 'dev auth stub is active outside an explicitly allowed development' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core no longer emits the dev-auth startup assertion (SEC-2)"
+grep -q 'DEV MODE' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core lost the DEV MODE banner requirement (SEC-2)"
+grep -q 'Fail CLOSED' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core's dev-auth assertion lost its fail-closed polarity (SEC-2)"
+grep -q 'fails open' .claude/skills/perp-check/SKILL.md   || err "/perp-check no longer reads the dev-auth guard's direction (SEC-2)"
 grep -qi 'dev-auth' .claude/skills/perp-check/SKILL.md || err "/perp-check lost the dev-auth gate step (SEC-2)"
 
 
@@ -324,7 +361,8 @@ grep -qi 'verify the artifact' .claude/skills/perp-check/SKILL.md || err "/perp-
 grep -qi 'upgrade drill' docs/CONTROLS.md || err "CONTROLS.md lost the upgrade drill"
 # PIN-5, enforced on the kit's own stack record. STACK.md has declared this
 # convention since 0.19.0 and nothing checked it until now.
-python - <<'PY2' || err "PIN-5: docs/STACK.md review stamp is stale or unreadable"
+if [ -n "$PY" ]; then
+"$PY" - <<'PY2' || err "PIN-5: docs/STACK.md review stamp is stale or unreadable"
 import re, sys
 from datetime import date
 try:
@@ -343,6 +381,7 @@ try:
 except Exception as e:
     print(f"::error::PIN-5 check failed: {e}"); sys.exit(1)
 PY2
+fi
 
 
 echo "20. novice guardrails: stop rules bind the AI, and the owner has a way out"
