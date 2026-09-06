@@ -164,10 +164,14 @@ echo "10. MODULES.md is registered and its dimension claim is mirrored"
 [ -f docs/MODULES.md ] || err "docs/MODULES.md missing (README and CLAUDE.md both point at it)"
 grep -q 'docs/MODULES\.md' README.md || err "docs/MODULES.md not listed in README § What's in here"
 grep -q 'docs/MODULES\.md' CLAUDE.md || err "docs/MODULES.md not referenced from CLAUDE.md"
-# The load-bearing claim: the portal is a dimension, never a module.
+# TWO different claims; the old alternation let either one satisfy both, so the
+# boundary claim could be deleted kit-wide with the check still green.
+#   "dimension, not a phase"  = sequencing  (never defer the portal to later)
+#   "dimension, not a module" = boundary    (it can never be an optional add-on)
 for f in CLAUDE.md docs/MODULES.md; do
-  grep -qiE 'dimension, not a (phase|module)' "$f" || err "$f lost the 'portal is a dimension' claim"
+  grep -qi 'dimension, not a phase' "$f" || err "$f lost the portal sequencing claim (dimension, not a phase)"
 done
+grep -qi 'dimension, not a module' docs/MODULES.md   || err "MODULES.md lost the boundary claim (dimension, not a module) - compliance posture would become an optional module"
 
 echo "11. every [module]-tagged catalog row links into MODULES.md's map"
 # Was a no-op: it only counted tags, so every MODULES.md link could be broken
@@ -395,7 +399,13 @@ grep -q 'WHEN-IT-GOES-WRONG' CLAUDE.md || err "nothing points the owner at the r
 grep -qi 'commit when it works' docs/WHEN-IT-GOES-WRONG.md || err "recovery guide lost the commit-when-it-works habit"
 grep -qi 'Stop. In plain language' docs/WHEN-IT-GOES-WRONG.md || err "recovery guide lost the reset phrase"
 # STOP-2 is the one a novice can never catch unaided.
-grep -qi 'weaken a test' CLAUDE.md || err "CLAUDE.md lost the never-weaken-a-test rule (STOP-2)"
+# A presence-grep is blind to INVERSION: flipping "never weaken a test" to
+# "you may weaken a test" keeps the fragment and passes. Assert the normative
+# sentence, then add tripwires for the negations that would replace it.
+grep -qi 'Never weaken a test to make it pass' CLAUDE.md   || err "CLAUDE.md lost the STOP-2 sentence (never weaken a test to make it pass)"
+grep -qiE '(may|can|ok to|fine to|acceptable to) weaken a test' CLAUDE.md   && err "STOP-2 has been INVERTED in CLAUDE.md - a test-weakening permission is not a rule"
+grep -qi 'Two failures at the same step = stop' CLAUDE.md   || err "CLAUDE.md lost the STOP-1 sentence (two failures at the same step = stop)"
+grep -qi 'Never report done from an exit code' CLAUDE.md   || err "CLAUDE.md lost the STOP-6 sentence (never report done from an exit code)"
 
 echo "exit: $fail"
 exit $fail
