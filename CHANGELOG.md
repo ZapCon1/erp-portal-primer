@@ -66,6 +66,30 @@ class detectable instead of recurring.
   no-sensor table — they were in neither, so an audit of "what's
   unenforced?" concluded they were covered.
 
+### Compliance rules moved to where they get built
+
+- Every `DOC-*`, `CUI-2..5` and `QUAL-1` existed in **exactly one file**
+  (`CONTROLS.md`), and **none** appeared in the module sections that would
+  implement them. `MODULES.md` § Doc Control described document control
+  while citing no `DOC-*` rule and omitting **`DOC-1`** — released-revision
+  immutability — entirely. Anyone building from that page built mutable
+  released revisions, which is the AS9100 finding the module exists to
+  prevent. All eleven rules are now stated where they are built.
+- **Each carries the one test that proves it.** `DOC-1` is "update a
+  released revision through a raw connection outside the ORM — the database
+  must reject it"; `CUI-5` is "delete a flagged file; assert the row is gone
+  *and* the object is gone, not flagged, gone". A compliance rule you cannot
+  demonstrate is a compliance rule you do not have.
+- The **`CUI-1` overclaim had a second copy** in `MODULES.md`. Both now name
+  the three side doors the predicate structurally cannot reach — error
+  tracking, presigned URLs/CDNs, and assistant tooling — each with its own
+  control.
+- Status in `CONTROLS.md` reads "not built yet — spec + test in MODULES.md",
+  because that is what is true: a kit with no application cannot make these
+  gate, and `DOC-1`/`DOC-5` are the two that cannot be retrofitted honestly.
+- kit-check now fails if a compliance rule is mapped in `CONTROLS.md` but
+  absent from `MODULES.md` — the drift that produced this gap.
+
 ### New: `docs/CONTROLS.md` § The rule index
 
 - Every one of the kit's **48 rule IDs** in one table: the rule in a line,

@@ -384,6 +384,19 @@ case_run 18 "README again tells adopters to delete kit-check wholesale" \
   "delete kit-check wholesale" \
   sh -c "printf 'The workflow only guards the primer - delete it after adoption.\n' >> README.md"
 
+# --- compliance rules must live where they get built --------------------------
+case_run 17 "DOC-1 (released-revision immutability) vanishes from the module that builds it" \
+  "absent from MODULES.md" \
+  py_re docs/MODULES.md 'DOC-1' 'DOCX-1'
+
+case_run 17 "the compliance acceptance tests are removed" \
+  "cannot demonstrate" \
+  py_re docs/MODULES.md 'Acceptance — how you prove each one' 'Notes'
+
+case_run 17 "CUI-1's hard-edge caveat is deleted (the side doors close silently)" \
+  "absent from MODULES.md" \
+  py_re docs/MODULES.md 'CUI-1' 'EGRESS-X'
+
 # ------------------------------------------------------------------ coverage --
 echo
 echo "coverage: kit-check steps with no mutation case here"

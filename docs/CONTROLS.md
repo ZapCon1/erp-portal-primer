@@ -38,17 +38,17 @@ meet anywhere resolves here.
 |---|---|---|---|
 | `A11Y-1` | The portal meets the WCAG 2.2 AA baseline; a scan is wired once a portal view exists | `docs/PORTAL_UX.md` | not enabled yet |
 | `AUDIT-1` | Every money/hours mutation and cross-tenant-sensitive action writes an audit entry | `docs/DOMAIN_MODEL.md` § Invariants (7) | no |
-| `CUI-1` | Flagged data never reaches a third party — `mayReceiveControlledData`, default false, checked at the uploader | `docs/MODULES.md` § Integration scaffold | not built yet |
-| `CUI-2` | Every access to a flagged file is audit-logged, including presigned-URL issuance | `docs/CONTROLS.md` § ITAR/EAR and CMMC/CUI | not built yet |
+| `CUI-1` | Flagged data never reaches a third party — `mayReceiveControlledData`, default false, checked at the uploader | `docs/MODULES.md` § Integration scaffold | not built yet — spec + test in MODULES.md |
+| `CUI-2` | Every access to a flagged file is audit-logged, including presigned-URL issuance | `docs/CONTROLS.md` § ITAR/EAR and CMMC/CUI | not built yet — spec + test in MODULES.md |
 | `CUI-3` | Audit records are retained for the contracted period | same | no |
 | `CUI-4` | MFA on privileged access | same | no |
 | `CUI-5` | Delete sanitizes — the row *and* the stored object | same | no |
 | `DEP-1` | Dependencies are audited; vulnerabilities fixed before committing | `CLAUDE.md` § Dependency Hygiene | **yes** (`npm audit` in CI) |
-| `DOC-1` | A released document revision is immutable | `docs/MODULES.md` § Doc Control | not built yet |
-| `DOC-2` | Release requires every named approval | same | not built yet |
-| `DOC-3` | Superseded revisions are retained, never deleted | same | not built yet |
-| `DOC-4` | Prints are stamped "uncontrolled when printed" and logged | same | not built yet |
-| `DOC-5` | The app owns the revision letter, not the storage service | same | not built yet |
+| `DOC-1` | A released document revision is immutable | `docs/MODULES.md` § Doc Control | not built yet — spec + test in MODULES.md |
+| `DOC-2` | Release requires every named approval | same | not built yet — spec + test in MODULES.md |
+| `DOC-3` | Superseded revisions are retained, never deleted | same | not built yet — spec + test in MODULES.md |
+| `DOC-4` | Prints are stamped "uncontrolled when printed" and logged | same | not built yet — spec + test in MODULES.md |
+| `DOC-5` | The app owns the revision letter, not the storage service | same | not built yet — spec + test in MODULES.md |
 | `GH-1` | A check that cannot block a merge is a report, not a gate | `docs/GITHUB.md` | n/a — the principle |
 | `GH-2` | Required status checks on the default branch, `enforce_admins` on | same | **yes, once set** |
 | `GH-3` | Secret scanning and push protection enabled | same | **yes** |
@@ -68,7 +68,7 @@ meet anywhere resolves here.
 | `PIN-3` | Every command the docs invoke still exists in the installed toolchain | same | **yes** |
 | `PIN-4` | Documented idioms match the installed major version | same | **yes** |
 | `PIN-5` | `docs/STACK.md`'s `_Reviewed:_` stamp is fresh | same | no — drift signal |
-| `QUAL-1` | Quantities reconcile: ordered = shipped + scrapped + reworked-out | `docs/MODULES.md` § Quality records | not built yet |
+| `QUAL-1` | Quantities reconcile: ordered = shipped + scrapped + reworked-out | `docs/MODULES.md` § Quality records | not built yet — spec + test in MODULES.md |
 | `SCALE-1` | Every table carrying `clientId` gets a composite `(clientId, <primary filter>)` index, in its first migration | `docs/DOMAIN_MODEL.md` § Scale notes | no |
 | `SCALE-2` | Every list endpoint takes a limit; cursor preferred | same | no |
 | `SEC-2` | The dev-auth stub cannot boot outside development — a fail-closed assertion, not a checkbox | `secure_coding.md`; mechanism in `/perp-build-core` | **yes** |
@@ -229,33 +229,41 @@ files means classifying them by hand, from memory.
 
 ### AS9100 document control
 
-**Status is the third column, and it is the one to read first.** This section
-describes what these controls must be. Nothing below is built yet — it ships
-with the Doc Control module. An imperative sentence is a specification, not a
-receipt.
+**Status is the third column, and it is the one to read first.** Nothing
+below is built yet — it ships with the Doc Control module. An imperative
+sentence is a specification, not a receipt.
+
+What *is* ready: every rule below is stated in `docs/MODULES.md` § Doc
+Control where it gets built, **each with the one test that proves it**. So
+"not built yet" means the code is absent, not that you are starting from a
+blank page. `DOC-1` and `DOC-5` are the two that cannot be retrofitted
+honestly — by the time you need them, live documents already carry the
+wrong history.
 
 | Rule | What must enforce it | Status |
 |---|---|---|
-| `DOC-1` A released revision is immutable | The same belt-and-braces as invoices: app-level hook **and** a DB constraint. Editing a released rev in place is how a controlled document quietly becomes uncontrolled. | not built yet |
-| `DOC-2` Release requires every named approval | Blocked in the state machine, tested. `draft → in-review → released` cannot skip. | not built yet |
-| `DOC-3` Superseded revisions are retained | Delete is refused, not soft-flagged. An auditor asks for rev B after rev C shipped. | not built yet |
-| `DOC-4` Prints are stamped and logged | Render asserts rev + timestamp + "uncontrolled when printed". | not built yet |
-| `DOC-5` The app owns the rev letter | If files live in Box/Dropbox/SharePoint, their native version history is **not** the record (`docs/MODULES.md` § File storage). | not built yet |
-| `QUAL-1` Quantities reconcile | ordered = shipped + scrapped + reworked-out. A drift here bills a customer for parts they never got — a `MONEY-1` failure wearing a quality costume. | not built yet |
+| `DOC-1` A released revision is immutable | The same belt-and-braces as invoices: app-level hook **and** a DB constraint. Editing a released rev in place is how a controlled document quietly becomes uncontrolled. | not built yet — spec + test in MODULES.md |
+| `DOC-2` Release requires every named approval | Blocked in the state machine, tested. `draft → in-review → released` cannot skip. | not built yet — spec + test in MODULES.md |
+| `DOC-3` Superseded revisions are retained | Delete is refused, not soft-flagged. An auditor asks for rev B after rev C shipped. | not built yet — spec + test in MODULES.md |
+| `DOC-4` Prints are stamped and logged | Render asserts rev + timestamp + "uncontrolled when printed". | not built yet — spec + test in MODULES.md |
+| `DOC-5` The app owns the rev letter | If files live in Box/Dropbox/SharePoint, their native version history is **not** the record (`docs/MODULES.md` § File storage). | not built yet — spec + test in MODULES.md |
+| `QUAL-1` Quantities reconcile | ordered = shipped + scrapped + reworked-out. A drift here bills a customer for parts they never got — a `MONEY-1` failure wearing a quality costume. | not built yet — spec + test in MODULES.md |
 
 ### ITAR/EAR and CMMC/CUI
 
 **Status column again — read it before the prose.** The classification field
-and the egress gate are the two that must exist in the first migration;
-neither is written by `/perp-build-core` yet.
+and the egress gate are the two that must exist in the first migration, and
+`/perp-build-core` now writes both. The rest ships with the module that
+needs it; each rule below is stated in `docs/MODULES.md` § Compliance posture
+with the test that proves it.
 
 | Rule | What must enforce it | Status |
 |---|---|---|
-| `CUI-1` Flagged data never reaches a third party | The integration scaffold's `mayReceiveControlledData`, **default false**, checked at the uploader — not filtered downstream and not left to the operator. It is the highest-leverage control in the kit, and its reach has a hard edge. It gates **deliberate, app-initiated transfers of a classified `File` to a registered provider**: Toolpath, hosted converters, email attachments, file-storage sync. It structurally **cannot** gate three paths people assume it does — an **error tracker** (an SDK auto-captures payloads and stack locals; there is no uploader and no connection record in that path — scrub at `beforeSend`, or self-host), a **CDN or presigned URL** (infrastructure the object store serves directly — for flagged files the app-proxy path in `CUI-2` is the only compliant option, not an alternative), and **LLM/assistant tooling** (it reads the repo on the owner's machine, outside the app entirely — the control is the rule in `docs/WHEN-IT-GOES-WRONG.md`: never open a controlled drawing in the repo the assistant reads). | not built yet |
-| `CUI-2` Every access to a flagged file is audit-logged | And a presigned URL is a **bearer credential the object store serves without telling your app** — so flagged files are proxied through the app, or issued single-use URLs whose *issuance* is the logged event (`docs/STACK.md` § Part viewing). | not built yet |
-| `CUI-3` Audit records are retained and protected | Retention is a decision, not a default. Write it down and check it is set. | not built yet |
-| `CUI-4` MFA on privileged access | Lands with real login (`SEC-2`), not after. | not built yet |
-| `CUI-5` Delete means gone | Sanitization, not a soft-delete flag — the row *and* the stored object. | not built yet |
+| `CUI-1` Flagged data never reaches a third party | The integration scaffold's `mayReceiveControlledData`, **default false**, checked at the uploader — not filtered downstream and not left to the operator. It is the highest-leverage control in the kit, and its reach has a hard edge. It gates **deliberate, app-initiated transfers of a classified `File` to a registered provider**: Toolpath, hosted converters, email attachments, file-storage sync. It structurally **cannot** gate three paths people assume it does — an **error tracker** (an SDK auto-captures payloads and stack locals; there is no uploader and no connection record in that path — scrub at `beforeSend`, or self-host), a **CDN or presigned URL** (infrastructure the object store serves directly — for flagged files the app-proxy path in `CUI-2` is the only compliant option, not an alternative), and **LLM/assistant tooling** (it reads the repo on the owner's machine, outside the app entirely — the control is the rule in `docs/WHEN-IT-GOES-WRONG.md`: never open a controlled drawing in the repo the assistant reads). | not built yet — spec + test in MODULES.md |
+| `CUI-2` Every access to a flagged file is audit-logged | And a presigned URL is a **bearer credential the object store serves without telling your app** — so flagged files are proxied through the app, or issued single-use URLs whose *issuance* is the logged event (`docs/STACK.md` § Part viewing). | not built yet — spec + test in MODULES.md |
+| `CUI-3` Audit records are retained and protected | Retention is a decision, not a default. Write it down and check it is set. | not built yet — spec + test in MODULES.md |
+| `CUI-4` MFA on privileged access | Lands with real login (`SEC-2`), not after. | not built yet — spec + test in MODULES.md |
+| `CUI-5` Delete means gone | Sanitization, not a soft-delete flag — the row *and* the stored object. | not built yet — spec + test in MODULES.md |
 
 ⚠️ **The honest limit of all of this.** These controls make compliance
 *achievable*; they do not confer it. You still owe a system security plan, a

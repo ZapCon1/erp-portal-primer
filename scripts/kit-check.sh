@@ -368,6 +368,14 @@ for id in DOC-1 DOC-2 DOC-3 CUI-1 CUI-2 QUAL-1; do
   grep -q "$id" docs/CONTROLS.md || err "CONTROLS.md lost compliance rule $id"
 done
 grep -qi 'Compliance controls' docs/CONTROLS.md || err "CONTROLS.md lost its compliance section"
+# A compliance rule must be stated where it gets BUILT, not only where it is
+# mapped. All of DOC-1..5, CUI-2..5 and QUAL-1 once lived in exactly one file
+# (this one), so MODULES.md described doc control while citing no DOC-* rule
+# and silently omitting DOC-1 - the immutability rule the module exists for.
+for id in DOC-1 DOC-2 DOC-3 DOC-4 DOC-5 CUI-1 CUI-2 CUI-3 CUI-4 CUI-5 QUAL-1; do
+  grep -q "$id" docs/MODULES.md     || err "compliance rule $id is mapped in CONTROLS.md but absent from MODULES.md, the module that must build it"
+done
+grep -qi 'Acceptance - how you prove each one\|Acceptance — how you prove each one' docs/MODULES.md   || err "MODULES.md lost the compliance acceptance tests - a rule you cannot demonstrate is a rule you do not have"
 grep -qi 'classification' docs/CONTROLS.md || err "CONTROLS.md lost the one data-classification field everything hangs off"
 # The egress gate is the highest-leverage control in the kit; it must default false.
 grep -qi 'default false' docs/CONTROLS.md || err "CUI-1 no longer states that the egress gate defaults to false"

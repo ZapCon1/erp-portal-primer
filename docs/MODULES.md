@@ -219,24 +219,56 @@ Entity sketch (graduates into DOMAIN_MODEL on activation):
 - **Acknowledgment** — who must read a revision, who did, when. This is
   the row an auditor asks for.
 
-Rules that aren't negotiable if you're claiming AS9100:
+Rules that aren't negotiable if you're claiming AS9100. **Each carries its
+rule ID** — `docs/CONTROLS.md` § The rule index is the canonical list, and
+these are the same rules stated where they get built:
 
-- **Superseded revisions are retained, never deleted** — the same
-  instinct as sent-invoice immutability.
-- **Only released revisions are visible to non-approvers**, and drafts
-  never render as current.
-- **Every state transition is audit-logged**, including who approved.
-- **Prints are stamped and logged.** An uncontrolled printed copy is the
-  classic finding. If you render a PDF of a controlled document, stamp
-  it with rev, print timestamp, and "uncontrolled when printed."
-- **A drawing revision is a document revision.** If Part Viewing is also
-  active, the two share `PartRevision` (see the dependency note).
-- **If files live in Box/Dropbox/SharePoint, the app still owns the rev
-  letter.** Their built-in version history is not your revision record —
-  running both is the same second-source-of-truth failure, and it fails
-  quietly: someone edits in place, the file changes, the rev letter
+- **`DOC-1` A released revision is immutable.** Editing a released rev in
+  place is how a controlled document quietly becomes uncontrolled — the
+  file changed, the rev letter didn't, and everyone downstream is working
+  from something that no longer exists. A change means a **new revision**,
+  never an edit. Enforce it the way sent invoices are enforced: an
+  app-level hook **and** a database constraint, because the app is not the
+  only thing that can write to the database.
+- **`DOC-2` Release requires every named approval.** Blocked in the state
+  machine: `draft → in-review → released` cannot skip, and the approval
+  rows must exist before the transition commits.
+- **`DOC-3` Superseded revisions are retained, never deleted.** Delete is
+  *refused*, not soft-flagged. An auditor asks for rev B after rev C
+  shipped.
+- **`DOC-4` Prints are stamped and logged.** An uncontrolled printed copy
+  is the classic finding. Any rendered PDF carries rev, print timestamp,
+  and "uncontrolled when printed."
+- **`DOC-5` The app owns the rev letter.** If files live in
+  Box/Dropbox/SharePoint, their built-in version history is **not** your
+  revision record — running both is a second-source-of-truth failure that
+  fails quietly: someone edits in place, the file changes, the rev letter
   doesn't move, and a controlled document is now uncontrolled. See
   § File storage.
+- **Only released revisions are visible to non-approvers**, and drafts
+  never render as current.
+- **Every state transition is audit-logged**, including who approved
+  (`AUDIT-1`).
+- **A drawing revision is a document revision.** If Part Viewing is also
+  active, the two share `PartRevision` (see the dependency note).
+
+#### Acceptance — how you prove each one
+
+A compliance rule you cannot demonstrate is a compliance rule you do not
+have. Each of these is one test, and they are the evidence an assessor
+asks for:
+
+| Rule | The test that proves it |
+|---|---|
+| `DOC-1` | Update a financial-equivalent field on a **released** revision **through a raw connection outside the ORM** — the database must reject it. Going through the app only proves the app. |
+| `DOC-2` | Attempt `in-review → released` with one required approval missing; assert it is refused and no revision row changed state. |
+| `DOC-3` | Attempt to delete a superseded revision; assert refusal, and that it is still readable afterwards. |
+| `DOC-4` | Render a controlled document to PDF and assert the output contains the rev, a timestamp, and the uncontrolled-when-printed stamp. |
+| `DOC-5` | Change the file out-of-band in the storage provider; assert the app's rev letter did **not** move and the mismatch surfaces somewhere a human sees it. |
+
+Write these when you build the module, not before go-live. `DOC-1` and
+`DOC-5` are the two that are near-impossible to retrofit honestly, because
+by then live documents already carry the wrong history.
 
 Portal face: customers see **released** revisions of documents shared
 with them — specs, certs of conformance, quality clauses — filtered by
@@ -257,10 +289,14 @@ other date · **FirstArticle** tied to a part revision.
 
 Two rules that matter beyond quality:
 
-- **Scrap and rework quantities must reconcile.** Qty ordered, qty scrapped,
-  qty reworked and qty shipped are one arithmetic identity. If they drift,
-  either the customer is billed for parts they didn't get or you eat parts
-  you made — both are `MONEY-1` problems wearing a quality costume.
+- **`QUAL-1` Scrap and rework quantities must reconcile.** Qty ordered, qty
+  scrapped, qty reworked and qty shipped are **one arithmetic identity**:
+  `ordered = shipped + scrapped + reworked-out`. If they drift, either the
+  customer is billed for parts they didn't get or you eat parts you made —
+  both are `MONEY-1` problems wearing a quality costume.
+  **Acceptance:** one test asserting the identity holds after every
+  disposition path (use-as-is, rework, scrap, return-to-vendor), including
+  a partial-quantity disposition — that is where it actually breaks.
 - **Portal face is deliberately asymmetric.** Customers see the cert of
   conformance and their own first-article record. They do **not** see your
   internal NCRs — that's your scrap rate. This is the one place the parity
@@ -589,24 +625,59 @@ already asks. Both regimes reduce to the same three questions, asked of
 **every** module: who may see this, may it leave the network, and what
 do we keep.
 
-**Data classification** generalizes the existing `File.exportControlled`
-flag into a classification the whole system reads: unrestricted ·
-export-controlled (ITAR/EAR) · CUI (CMMC). One field, checked in one
-predicate, honored by every module and every integration.
+**Data classification** is the field the whole system reads:
+`File.classification` — unrestricted · export-controlled (ITAR/EAR) · CUI
+(CMMC). It supersedes the older boolean `exportControlled`, which could not
+tell CUI from export-controlled. `/perp-build-core` provisions it in the
+first migration **even when the answer is "no regulated data"**, because
+retrofitting it means classifying live files by hand, from memory.
 
 What CMMC adds beyond what the kit already does — and it already does a
 fair amount of it (append-only audit log, tenant isolation, the
-incident-response runbook, encrypted secrets):
+incident-response runbook, encrypted secrets). **Each carries its rule ID**;
+`docs/CONTROLS.md` § The rule index is canonical:
 
-- **Audit records themselves must be protected and retained**, not just
-  written. The retention period is a decision, not a default.
-- **MFA for privileged access**, and session lock. This lands on the
-  real-login gate that's already a before-go-live item.
-- **Media protection** — encryption at rest, and sanitization on delete
-  rather than a soft-delete flag.
-- **Egress control** — CUI reaching an unapproved third party is the
-  same structural gate as ITAR, which is why it's one field and one
-  check.
+- **`CUI-1` Egress control** — flagged data never reaches an unapproved
+  third party. One classification, one predicate, checked at the uploader.
+  CUI and ITAR are the same structural gate, which is why it is one field
+  and one check. **Read the limits below — this predicate does not reach
+  everything people assume it does.**
+- **`CUI-2` Every access to a flagged file is audit-logged**, including the
+  issuance of a presigned URL — which is a bearer credential the object
+  store serves *without telling your app*. For flagged files, proxy through
+  the app; that is the only compliant shape, not an alternative to one.
+- **`CUI-3` Audit records are protected and retained**, not merely written.
+  The retention period is a decision, not a default. Write it down and
+  assert it is set.
+- **`CUI-4` MFA for privileged access**, and session lock. Lands on the
+  real-login gate (`SEC-2`) that is already a before-go-live item.
+- **`CUI-5` Media protection** — encryption at rest, and **sanitization on
+  delete** rather than a soft-delete flag: the row *and* the stored object.
+
+#### Acceptance — how you prove each one
+
+| Rule | The test that proves it |
+|---|---|
+| `CUI-1` | Flag a file, then attempt to send it to an integration whose `mayReceiveControlledData` is false; assert refusal **at the uploader**, and that nothing left the process. |
+| `CUI-2` | Read a flagged file two ways — through the app, and by issuing a presigned URL; assert an audit row exists for **both**, the second recording issuance. |
+| `CUI-3` | Assert the retention setting is present and non-default, and that an audit row cannot be updated or deleted through the app. |
+| `CUI-4` | Assert a privileged route refuses a session without a second factor. |
+| `CUI-5` | Delete a flagged file; assert the row is gone **and** the stored object is gone — not flagged, gone. |
+
+⚠️ **The hard edge of `CUI-1`.** It gates deliberate, app-initiated
+transfers of a classified file to a registered provider — Toolpath, hosted
+converters, email attachments, storage sync. It **cannot** reach three
+paths people assume it does, and each needs its own control:
+
+- **Error tracking** — an SDK auto-captures request payloads and stack
+  locals. There is no uploader and no connection record in that path.
+  Scrub at `beforeSend`, or self-host.
+- **CDNs and presigned URLs** — infrastructure the object store serves
+  directly. The app-proxy path in `CUI-2` is the answer.
+- **LLM and assistant tooling** — it reads the repo on the owner's machine,
+  entirely outside the app. The only control is the rule in
+  `docs/WHEN-IT-GOES-WRONG.md`: never open a controlled drawing or spec in
+  the repo the assistant reads.
 
 ⚠️ **The one that can invalidate a hosting decision.** Handling CUI in a
 cloud service generally pulls in FedRAMP-Moderate-equivalency
@@ -624,9 +695,12 @@ move, and getting it wrong is expensive after go-live, not before.
 the data leaves through a side door — transactional email, error
 tracking, a CDN, an LLM tool, or a third-party analysis API like
 Toolpath. `docs/DEPLOYMENT_TARGETS.md` § The egress trap enumerates
-them. The defense is the one already specified above: one
-classification, one predicate, checked at every egress point, with the
-integration scaffold's `mayReceiveControlledData` as its enforcement.
+them. The primary defense is one classification and one predicate checked
+at every egress point, enforced by the integration scaffold's
+`mayReceiveControlledData` — **plus the three side doors it cannot reach**,
+each with its own control (see the hard edge of `CUI-1` above). A predicate
+that covers most paths and is described as covering all of them is how a
+side door stays open.
 
 **AS9100 is different in kind:** it wants controlled documents,
 traceability, and records — which is why doc control earns module status
