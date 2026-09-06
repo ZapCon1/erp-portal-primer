@@ -406,6 +406,16 @@ grep -q 'api/health' .claude/skills/perp-build-core/SKILL.md   || err "/perp-bui
 grep -qi 'Dockerfile' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core emits no Dockerfile, but the deploy runbook runs docker build ."
 grep -q 'exportControlled' docs/DOMAIN_MODEL.md   && err "DOMAIN_MODEL.md still specifies the boolean exportControlled - it cannot express CUI vs export-controlled"
 
+# The mechanism that converts "not built yet" into a real gate once an app
+# exists. Without it, every dormant rule depends on someone re-reading a
+# status column on exactly the right day.
+[ -f scripts/graduation.sh ] || err "scripts/graduation.sh missing - the dormant compliance and integrity rules would have nothing to arm them"
+grep -q 'Rules that arm themselves' docs/CONTROLS.md || err "CONTROLS.md lost the graduation section - the dormant rules stop being discoverable"
+grep -q 'graduation.sh' .claude/skills/perp-setup-testing/SKILL.md || err "the CI template no longer runs graduation.sh, so arming rules would never gate"
+grep -q 'graduation.sh' scripts/README.md || err "scripts/README.md does not tell adopters to keep graduation.sh"
+for id in DOC-1 CUI-1 MONEY-4 TENANT-1 SEC-2 QUAL-1 A11Y-1; do
+  grep -q "$id" scripts/graduation.sh || err "graduation.sh no longer arms $id"
+done
 [ -f scripts/README.md ] || err "scripts/README.md missing - adopters are left to triage 400 lines of bash to decide what to delete"
 grep -qi 'bind YOUR repo' scripts/README.md || err "scripts/README.md no longer says which checks bind the adopter's repo"
 grep -q 'delete it after adoption' README.md && err "README again tells adopters to delete kit-check wholesale - half of it binds their repo (see scripts/README.md)"

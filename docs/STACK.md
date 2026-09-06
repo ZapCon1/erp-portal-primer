@@ -17,6 +17,19 @@ often one AI-assisted developer — is better served by a decided path
 than a menu. This document records what was chosen, why, and what to do
 if you deviate.
 
+## Contents
+
+- [The default stack](#the-default-stack)
+- [Pinned conventions (the churn defense)](#pinned-conventions-the-churn-defense)
+- [Getting a database, and the two Prisma gotchas](#getting-a-database-and-the-two-prisma-gotchas)
+- [Integrity (the below-the-ORM defense)](#integrity-the-below-the-orm-defense)
+- [How it was decided](#how-it-was-decided)
+- [Deployment](#deployment)
+- [Honest costs (know them going in)](#honest-costs-know-them-going-in)
+- [Part viewing (the OpenCascade provision)](#part-viewing-the-opencascade-provision)
+- [If you deviate](#if-you-deviate)
+
+---
 ## The default stack
 
 **Next.js (App Router) + TypeScript + Prisma + PostgreSQL**, deployed

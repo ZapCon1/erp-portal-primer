@@ -38,3 +38,8 @@ jobs:
       # has quietly stopped working fails HERE rather than years later.
       - name: Prove the checks can actually fail
         run: bash scripts/kit-check-selftest.sh
+
+      # In this repo it must report everything dormant and pass. If it ever
+      # goes red here, a trigger is misfiring on a repo with no application.
+      - name: Dormant rules stay dormant in a repo with no app
+        run: bash scripts/graduation.sh

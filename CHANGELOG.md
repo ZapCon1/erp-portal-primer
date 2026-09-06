@@ -15,6 +15,48 @@ round's "four checks could not fail" had reintroduced the same class. This
 release is the response, and the centrepiece is a harness that makes the
 class detectable instead of recurring.
 
+### Rules that arm themselves — new `scripts/graduation.sh`
+
+A primer has no application, so a whole class of rule cannot be enforced in
+it: `DOC-1` needs a database constraint, `CUI-2` needs a file read to audit,
+`MONEY-4` needs an invoice counter. Marking those "not built yet" is honest
+and is also exactly how a rule never gets built — a status column is read
+once, during adoption, by someone who does not yet have the thing the rule
+protects. Nobody re-reads it on the day they add a `File` model.
+
+So each dormant rule now has a **trigger**: a detectable fact about the repo
+meaning the rule applies. Before it, the rule reports `dormant` and passes.
+After it, a missing requirement **fails the build**.
+
+| The moment this becomes true | Arms |
+|---|---|
+| `package.json` exists | `TEST-*`, `DEP-1`, `PIN-1/2`, `OPS-1` |
+| `AUTH_MODE` appears in source | `SEC-2`, including rejecting the fail-open shape |
+| the schema has `clientId` | `TENANT-1`, `SCALE-1` |
+| the schema stores money | `MONEY-1` |
+| an `Invoice` model exists | `MONEY-4` |
+| a `File` model exists | `CUI-1`, `CUI-2` |
+| `ControlledDocument` exists | `DOC-1`..`DOC-5` |
+| `Nonconformance`/`Inspection` exists | `QUAL-1` |
+| a `portal/` route group exists | `A11Y-1`, tenant-isolation tests |
+| a `Dockerfile` or compose file exists | `OPS-3`, plus a `GH-6` reminder |
+
+**The design rule: the rule arrives when the risk does.** Adding a `File`
+model is the moment export control starts mattering, and that is the moment
+`CUI-1` starts failing the build — not a checklist line from six months
+earlier.
+
+Verified in both directions: in this repo everything reports dormant and
+exits 0, and eight trigger cases in the selftest each build a throwaway repo
+containing exactly one risk and assert the matching rule fires. A fixture of
+a correctly-built app passes with all ten groups armed, so it is satisfiable
+rather than merely always-red.
+
+Two limits stated in the file: it can confirm a test *exists*, not that it is
+good (`MODULES.md`'s acceptance tables say what each must do), and
+`GH-2`/`GH-6` live in GitHub's settings, which no script in the repo can see
+— it prints a reminder rather than pretending.
+
 ### The systemic fix
 
 - **New `scripts/kit-check-selftest.sh`.** Snapshots the working tree,

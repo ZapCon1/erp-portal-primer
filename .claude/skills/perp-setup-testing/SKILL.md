@@ -204,6 +204,10 @@ jobs:
       # The rule gates. Without this step, SEC-2 and PIN-1..4 are documented
       # intentions that nothing checks (docs/CONTROLS.md § The sensor map).
       - run: bash scripts/gates.sh
+      # Rules that arm themselves as the app grows (docs/CONTROLS.md
+      # § Rules that arm themselves). Passes trivially early on; starts
+      # failing the day the thing it protects exists.
+      - run: bash scripts/graduation.sh
       # - run: npx pa11y-ci               # accessibility — enable when the first
       #                                   # portal view ships (/perp-check a11y gate)
 ```

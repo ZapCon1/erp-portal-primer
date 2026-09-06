@@ -13,6 +13,7 @@ from being committed.
 | File | What it is |
 |---|---|
 | `kit-check.sh` | The consistency checks. Some are the primer's own bookkeeping; most bind **your** repo forever. |
+| `graduation.sh` | **Keep this one.** Dormant rules that arm themselves as your app grows — adding a `File` model turns on the export-control rules, adding an `Invoice` turns on the concurrency tests. In a repo with no application it reports "dormant" and passes. |
 | `kit-check-selftest.sh` | Proves the checks can actually fail, by breaking things on a copy and asserting each check goes red. **Keep this whichever way you go** — a guardrail nobody has seen fail is not a guardrail. |
 
 ## Checks that are the primer's own bookkeeping — safe to delete
@@ -59,6 +60,7 @@ to the `ci.yml` that `/perp-setup-testing` writes:
 ```yaml
       - run: bash scripts/kit-check.sh
       - run: bash scripts/kit-check-selftest.sh
+      - run: bash scripts/graduation.sh
 ```
 
 Then make CI a **required status check** so a red run blocks the merge —

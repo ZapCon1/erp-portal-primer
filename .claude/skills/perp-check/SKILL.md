@@ -128,6 +128,14 @@ Every failure line prints its rule ID. **Tell the owner where to look:**
 resolution path is worse than no ID — it looks like something they should
 already know.
 
+**Step 7 — rules that have armed.** Run `scripts/graduation.sh` if it
+exists. It reports which dormant rules have become applicable because the
+repo now contains the thing they protect (a `File` model arms the
+export-control rules; an `Invoice` arms the concurrency tests). An armed rule
+that is unsatisfied is a **gate**, not a suggestion — the risk it covers is
+already in the repo. Report the armed/dormant counts either way, so the owner
+can see the system tightening as the app grows.
+
 ### Drift signals — report, never fail
 
 | Sensor | Command | Why it never gates |

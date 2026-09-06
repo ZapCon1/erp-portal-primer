@@ -397,6 +397,65 @@ case_run 17 "CUI-1's hard-edge caveat is deleted (the side doors close silently)
   "absent from MODULES.md" \
   py_re docs/MODULES.md 'CUI-1' 'EGRESS-X'
 
+# --- graduation: prove each TRIGGER actually arms its rule --------------------
+# kit-check can only confirm graduation.sh exists. These build a throwaway repo
+# containing exactly one risk and assert the matching rule fires. A trigger that
+# never fires is the "not built yet" status column all over again.
+
+grad_case() {  # <name> <expected-substring> <setup commands as a shell string>
+  local name="$1" expect="$2" setup="$3"
+  local G="$W/grad"
+  rm -rf "$G"; mkdir -p "$G/scripts" "$G/prisma" "$G/src/lib"
+  cp "$ROOT/scripts/graduation.sh" "$G/scripts/"
+  ( cd "$G" && eval "$setup" ) >/dev/null 2>&1
+  local out rc
+  out=$(cd "$G" && bash scripts/graduation.sh 2>&1); rc=$?
+  if [ $rc -eq 0 ]; then
+    echo "  ✗ trigger: $name — DID NOT ARM (graduation exited 0 with the risk present)"
+    failed=$((failed+1)); return
+  fi
+  if ! printf '%s' "$out" | grep -qi -- "$expect"; then
+    echo "  ~ trigger: $name — armed, but not for the stated rule"
+    printf '%s' "$out" | grep '::error::' | sed 's/^/      /' | head -2
+    failed=$((failed+1)); return
+  fi
+  echo "  ✓ trigger: $name"
+  pass=$((pass+1))
+}
+
+echo
+echo "graduation triggers (each must arm its rule the moment the risk exists):"
+
+PKG='printf "{\"name\":\"x\",\"dependencies\":{\"next\":\"16.0.0\"}}
+" > package.json; printf "{}" > package-lock.json; mkdir -p docs/runbooks; printf "# d
+" > docs/runbooks/deploy.md; printf "# i
+" > docs/runbooks/incident-response.md; printf "x" > a.test.ts; printf "{\"name\":\"x\",\"scripts\":{\"test\":\"v\"},\"dependencies\":{\"next\":\"16.0.0\"}}
+" > package.json'
+
+grad_case "a File model arms CUI-1 (export control)"   "classification"   "$PKG; printf 'model File { id String @id }
+' > prisma/schema.prisma"
+
+grad_case "an Invoice model arms MONEY-4 (concurrency tests)"   "concurrency test"   "$PKG; printf 'model Invoice { id String @id }
+' > prisma/schema.prisma"
+
+grad_case "clientId in the schema arms TENANT-1 (fail-closed mechanism)"   "fail-closed mechanism"   "$PKG; printf 'model P { id String @id  clientId String }
+' > prisma/schema.prisma"
+
+grad_case "a Float money column arms MONEY-1"   "integer minor units"   "$PKG; printf 'model P { id String @id  totalAmount Float }
+' > prisma/schema.prisma"
+
+grad_case "ControlledDocument arms DOC-1..5"   "has no test"   "$PKG; printf 'model ControlledDocument { id String @id }
+' > prisma/schema.prisma"
+
+grad_case "a fail-OPEN dev-auth guard arms SEC-2"   "FAILS OPEN"   "$PKG; printf 'const AUTH_MODE=1
+if (process.env.NODE_ENV === %s && x) { throw new Error(\"refusing to start\") }
+' \"'production'\" > src/lib/auth.ts"
+
+grad_case "a portal route group arms A11Y-1"   "accessibility scan"   "$PKG; mkdir -p app/portal"
+
+grad_case "a Dockerfile arms OPS-3 (error tracking)"   "error tracking"   "$PKG; printf 'FROM node:20
+' > Dockerfile"
+
 # ------------------------------------------------------------------ coverage --
 echo
 echo "coverage: kit-check steps with no mutation case here"
