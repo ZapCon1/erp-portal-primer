@@ -26,6 +26,28 @@ column is describing an intention, not your repository.
 
 ---
 
+## The flow — `GIT-1`
+
+**`main` is only ever updated by merging a pull request whose CI is green.**
+Never commit on `main`, never push to `main`, never merge a red PR. Every
+time, regardless of how small the change:
+
+> **branch → commit → push → PR → CI green → merge → deploy**
+
+**Solo repos included, and especially.** A solo repo is exactly where "just
+this once" becomes the habit, and where nobody else is going to catch it.
+Step 1 below makes the rule structural rather than a promise — GitHub then
+refuses the shortcut, including for you.
+
+**Why it holds even when you are in a hurry**: CI is the only thing that
+runs the full gate set, on Linux, where the adopter's failures actually
+happen. A green local run has already been wrong in this repo's own history
+— a check that could never fail passed on Windows for two releases and was
+caught by CI on the first PR that ran it. The pull request is where that
+verdict arrives *before* the change is permanent, which is the entire point.
+
+---
+
 ## Do these six, in this order
 
 You can do all of it in the web UI, or paste the `gh` commands. Both are
@@ -143,6 +165,49 @@ jobs:
     needs: [ci]                 # cannot run unless ci succeeded
     environment: production     # pauses for the required reviewer
 ```
+
+**Creating the environment**, click path: **Settings** → **Environments** →
+**New environment** → name it `production` → tick **Required reviewers** and
+add yourself → under **Deployment branches**, choose **Protected branches
+only**.
+
+```bash
+# find your numeric user id first — the API wants the id, not the login
+gh api user --jq .id
+
+gh api -X PUT repos/:owner/:repo/environments/production \
+  -H "Accept: application/vnd.github+json" \
+  --input - <<'JSON'
+{
+  "wait_timer": 0,
+  "prevent_self_review": false,
+  "reviewers": [ { "type": "User", "id": <YOUR_NUMERIC_ID> } ],
+  "deployment_branch_policy": {
+    "protected_branches": true,
+    "custom_branch_policies": false
+  }
+}
+JSON
+```
+
+Three choices in there worth understanding:
+
+- **`prevent_self_review: false`** — on a solo repo you *are* the reviewer,
+  and `true` would make deploying impossible. Same reasoning as requiring
+  zero approving reviews in step 1: a gate you must disable to work is a
+  gate you will disable permanently. Set it `true` the day a second person
+  can approve.
+- **`protected_branches: true`** — only a protected branch (i.e. `main`) can
+  deploy to production. A feature branch cannot, even by accident, even with
+  a hand-run workflow.
+- **`wait_timer: 0`** — a forced delay is not the control here; the human
+  click is. Use a timer only if you want a cooling-off period.
+
+⚠️ **The environment gate is the one control you cannot prove from inside
+the repo.** Branch protection can be tested in seconds (step 1). This one is
+proven by your **first real deploy pausing** and waiting for you. Until that
+has happened once, treat it as configured-but-unverified — and do that first
+deploy deliberately, in daylight, rather than discovering it at 2am.
 
 `docs/runbooks/deploy.md` is the human half of this. The environment gate is
 what makes skipping the runbook require a deliberate click.

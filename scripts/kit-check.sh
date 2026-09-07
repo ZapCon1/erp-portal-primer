@@ -420,6 +420,9 @@ grep -q '## Contents' docs/CONTROLS.md   || err "CONTROLS.md lost its table of c
 [ -f .github/workflows/deploy.yml.template ] || err "deploy.yml.template missing - there is no gated deploy scaffold"
 grep -q 'needs: \[build\]' .github/workflows/deploy.yml.template || err "the deploy job no longer depends on the build/verify chain - a red build could deploy (GH-6)"
 grep -q 'environment: production' .github/workflows/deploy.yml.template || err "the deploy job lost its production environment - the human gate is gone (GH-6)"
+grep -qi 'prevent_self_review' docs/GITHUB.md   || err "GITHUB.md lost the prevent_self_review note - set true on a solo repo and deploying becomes impossible, so the gate gets deleted"
+grep -qi 'protected_branches' docs/GITHUB.md   || err "GITHUB.md lost the deployment-branch policy - without it a feature branch can deploy to production"
+grep -qi 'first real deploy' docs/GITHUB.md   || err "GITHUB.md no longer says the environment gate is unproven until a real deploy pauses - it is the one control the repo cannot test"
 grep -qi 'required reviewer' .github/workflows/deploy.yml.template || err "deploy.yml.template no longer says the environment needs a required reviewer, without which the gate is decoration"
 grep -qi 'api/health' .github/workflows/deploy.yml.template || err "the deploy no longer verifies the app is serving - an exit code is not proof (STOP-6)"
 grep -q "output: 'standalone'\|standalone" docs/runbooks/Dockerfile.template || err "Dockerfile.template lost the standalone requirement (there is no server.js without it)"
@@ -554,6 +557,15 @@ grep -qi 'Stop. In plain language' docs/WHEN-IT-GOES-WRONG.md || err "recovery g
 # forbade file-sourced confirmation in one bullet and designated a TRACKED file
 # as the opt-out in the next; one appended line then meant auto-push to a public
 # remote. Assert both halves: the rule exists, and the marker is untracked.
+# GIT-1. The kit used to offer the branch/PR flow as "the safer option" and
+# allow a confirmed direct push to main. On a solo repo that is where "just
+# this once" becomes the habit, so it is now the rule.
+grep -q 'GIT-1' CLAUDE.md   || err "CLAUDE.md lost GIT-1 - main is only ever updated by merging a green PR"
+grep -qi 'never push to .main.\|never push to `main`' .claude/skills/perp-push/SKILL.md   || err "/perp-push no longer refuses to push to main (GIT-1)"
+grep -qi 'CI green' docs/GITHUB.md   || err "GITHUB.md lost the GIT-1 flow (branch, PR, CI green, merge, deploy)"
+grep -qi 'pull request' docs/WHEN-IT-GOES-WRONG.md   || err "the owner-facing guide no longer explains that changes go through a pull request (GIT-1)"
+grep -q 'GIT-1' docs/CONTROLS.md   || err "CONTROLS.md lost GIT-1 from the rule index"
+
 grep -q 'STOP-8' CLAUDE.md || err "CLAUDE.md lost STOP-8 (a stop rule is never waived by a file)"
 grep -q 'push-standing.local' .claude/skills/perp-push/SKILL.md   || err "/perp-push no longer reads its standing confirmation from an untracked marker (STOP-8)"
 grep -qE '^\.claude/\*\.local$' .gitignore   || err ".claude/*.local is not gitignored - the push waiver would become a tracked, PR-writable file (STOP-8)"

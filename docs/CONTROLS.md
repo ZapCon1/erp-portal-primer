@@ -52,12 +52,13 @@ meet anywhere resolves here.
 | `DOC-3` | Superseded revisions are retained, never deleted | same | dormant — arms on its trigger (§ Rules that arm themselves) |
 | `DOC-4` | Prints are stamped "uncontrolled when printed" and logged | same | dormant — arms on its trigger (§ Rules that arm themselves) |
 | `DOC-5` | The app owns the revision letter, not the storage service | same | dormant — arms on its trigger (§ Rules that arm themselves) |
+| `GIT-1` | `main` is only ever updated by merging a PR whose CI is green — branch → commit → push → PR → green → merge → deploy. Solo repos included | `CLAUDE.md` § Git Hygiene; flow in `docs/GITHUB.md` | **yes, once `GH-2` is set** — the remote refuses a direct push |
 | `GH-1` | A check that cannot block a merge is a report, not a gate | `docs/GITHUB.md` | n/a — the principle |
 | `GH-2` | Required status checks on the default branch, `enforce_admins` on | same | **yes, once set** |
 | `GH-3` | Secret scanning and push protection enabled | same | **yes** |
 | `GH-4` | Dependabot alerts on; version updates off on a pinned stack | same | no |
 | `GH-5` | The default workflow token is read-only | same | **yes** |
-| `GH-6` | Deploy gated by `needs:` **and** an environment reviewer | same | **yes, once set** |
+| `GH-6` | Deploy gated by `needs:` **and** an environment reviewer | same | **yes, once set** — the reviewer pause is only *proven* by the first real deploy |
 | `GH-7` | CODEOWNERS on `.claude/`, `scripts/` and the security docs, once a second person can commit | same | no |
 | `GH-8` | Never run untrusted branch content with write scope or secrets | same | no |
 | `MONEY-1` | Money is integer minor units in an integer column — never a float, never a stored decimal | `docs/DOMAIN_MODEL.md` § Invariants | no |
@@ -144,6 +145,7 @@ that aren't installed.
 | Type check | — | agent loop, pre-push, CI | **yes** | — |
 | Unit tests | `TEST-*`, `TENANT-1` (isolation tests) | agent loop, pre-push, CI | **yes** | — |
 | Dependency audit | `DEP-1` | CI | **yes** | — |
+| Branch protection refusing a direct push | `GIT-1` | the remote, on every push | **yes, once `GH-2` is set** | — |
 | Build | — | CI, pre-deploy | **yes** | — |
 | **Dev-auth assertion** | `SEC-2` | app startup, `scripts/gates.sh` in CI | **yes** | — the CI step also rejects the fail-OPEN shape (`NODE_ENV === 'production' &&`) |
 | Migration one-shot exit 0 | `OPS-2` | deploy | by the runbook | automate it in the deploy job |
@@ -204,7 +206,7 @@ candidate for promotion, and `/perp-check` reports the honest gap.
 | `OPS-3` error tracking + uptime, one alert reaching a human | a go-live checkbox | Name one uptime poller and one error tracker in `docs/runbooks/deploy.md`; the acceptance test is **send one test alert and confirm a human got it** |
 | `STOP-1..7` the rules binding the assistant when the owner cannot review the work | prose in `CLAUDE.md`, read by the model | Nothing computational can verify the model obeyed them. kit-check asserts the *sentences* survive (and tripwires their inversion); the owner-facing detector is `docs/WHEN-IT-GOES-WRONG.md` § Warning signs. **Treat these as the least-enforced rules in the kit, not the most** |
 | `PARITY-1` the two surfaces compute every shared number identically | one shared `lib/` helper, by discipline | `/perp-review-parity` is inferential. A real sensor is a test that calls the same helper from both surfaces and asserts equality |
-| `GH-2`/`GH-6` a red build blocks the merge and the deploy | **nothing in this repo** — they are GitHub settings | Work through `docs/GITHUB.md`, then open one throwaway PR with a deliberate break and confirm the merge button is disabled |
+| `GH-2`/`GH-6` a red build blocks the merge and the deploy | **nothing in this repo** — they are GitHub settings | Work through `docs/GITHUB.md`. `GH-2` is provable in seconds — open one throwaway PR with a deliberate break and confirm the merge is refused. `GH-6`'s reviewer pause is only provable by a real deploy; do the first one deliberately, in daylight |
 
 ⚠️ **On `TENANT-1` specifically.** Earlier versions of this kit asserted that
 no ORM-level safety net exists for tenant isolation. That is not true on the
@@ -497,6 +499,8 @@ and a gate that disappears when a checklist is tidied away was never a gate.**
 - [ ] `GH-2` Required status checks on the default branch, `enforce_admins`
       on — **verified by opening one PR with a deliberate break and seeing
       the merge button disabled**, not by looking at the settings page.
+- [ ] `GIT-1` No direct pushes to `main` — verified by trying one and being
+      refused, not by intending to use branches.
 - [ ] `GH-3` Secret scanning + push protection enabled.
 - [ ] `GH-6` Deploy gated: the deploy job `needs:` the CI job, and the
       `production` environment has a required reviewer.

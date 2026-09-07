@@ -22,6 +22,14 @@ accident.
 
 If you only remember one thing on this page: **commit when it works.**
 
+**And one rule about publishing:** changes reach the real project by going
+through a **pull request** — a branch, then a request to merge it, which
+only goes in once the automatic checks are green. Nothing goes straight onto
+`main`, including by you. If the assistant offers to push directly to
+`main`, that is a warning sign: say *"use a branch and a pull request"*. The
+checks exist to catch what a confident-sounding "it works" misses, and they
+have already caught exactly that in this kit's own history.
+
 ---
 
 ## Warning signs — stop and reset the conversation

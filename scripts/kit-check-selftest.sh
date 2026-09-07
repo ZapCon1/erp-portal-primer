@@ -502,6 +502,27 @@ case_run 17 "/perp-scope stops separating FCI from CUI" \
   "separates FCI from CUI" \
   py_re .claude/skills/perp-scope/SKILL.md 'FCI' 'controlled info'
 
+case_run 18 "GITHUB.md loses the prevent_self_review trap (solo deploys become impossible)" \
+  "prevent_self_review" \
+  py_re docs/GITHUB.md 'prevent_self_review' 'selfReviewSetting'
+
+case_run 18 "GITHUB.md stops saying the environment gate is unproven until a real deploy" \
+  "one control the repo cannot test" \
+  py_re docs/GITHUB.md 'first real deploy' 'eventual deploy'
+
+# --- GIT-1: the branch/PR flow is the rule, not the safer option -------------
+case_run 20 "GIT-1 is removed from CLAUDE.md" \
+  "lost GIT-1" \
+  py_re CLAUDE.md 'GIT-1' 'GITX-1'
+
+case_run 20 "/perp-push starts allowing direct pushes to main again" \
+  "no longer refuses to push to main" \
+  py_re .claude/skills/perp-push/SKILL.md 'never push to `main`' 'pushing to main is fine'
+
+case_run 20 "the owner guide stops explaining the pull-request flow" \
+  "through a pull request" \
+  py_re docs/WHEN-IT-GOES-WRONG.md 'pull request' 'update'
+
 # ------------------------------------------------------------------ coverage --
 echo
 echo "coverage: kit-check steps with no mutation case here"
