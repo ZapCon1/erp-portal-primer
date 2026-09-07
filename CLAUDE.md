@@ -142,13 +142,12 @@ was retired. That file also says plainly which rules nothing enforces yet.
 - **Discriminated unions over boolean flags** — estimate/invoice/project/phase statuses are state machines, not booleans.
 
 ### Money & Hours Are Sacred
-The numbers are the product. Canonical rules: DOMAIN_MODEL § Invariants.
-- **One source of truth per number** — one helper, used everywhere (see **Parity**).
-- **MONEY-1: integer minor units** (cents) in an integer column — never floats, and never a decimal type for stored amounts (JS has no decimal; STACK.md § Pinned conventions is canonical). `Decimal` is for fractional *rates*, not for money you store.
-- **Only approved + billable inputs count toward billed totals** — one documented predicate, applied identically everywhere.
-- **One hour-rounding rule** — at entry or at invoice, never both (DOMAIN_MODEL § TimeEntry).
-- **A stored/cached rollup is a second source of truth** — allowed only under invariant 11.
-- **Every money/hours mutation and cross-tenant-sensitive action writes an audit entry** — predicate: invariant 7; mechanics: `secure_coding.md` § 7.
+The numbers are the product. Canonical: DOMAIN_MODEL § Invariants — cite an
+invariant rather than re-deriving it.
+- **`MONEY-1`: integer minor units** (cents) in an integer column — never a float, and never a decimal type for stored amounts (JS has no decimal). `Decimal` is for fractional *rates*, not money you store.
+- **One source of truth per number** — one helper, used by both surfaces (invariant 2, and **Parity** below). A cached rollup is a second source: invariant 11 only.
+- **One documented predicate for what counts as billable**, applied identically everywhere; **one** hour-rounding rule, at entry or at invoice, never both (§ TimeEntry).
+- **`AUDIT-1`: every money/hours mutation and cross-tenant-sensitive action writes an audit entry** — predicate: invariant 7; mechanics: `secure_coding.md` § 7.
 
 ### Duplication & Abstraction
 - Two identical blocks fine; three borderline; four+ extract.
@@ -310,7 +309,7 @@ Full model: docs/DOMAIN_MODEL.md. -->
 - **Error semantics**: cross-tenant access returns **404, not 403**.
 - **Sensitive responses**: never expose password hashes, reset tokens, internal-only fields (`secure_coding.md` § "Sensitive fields in responses").
 - **Secret exposed to the AI or committed?** Stop; rotation protocol, `secure_coding.md` § 8 — the key is burned; deletion is not a fix.
-- **Defense in depth (Claude Code, optional)**: the `sensitive-canary` plugin catches secrets/PII before they enter context. Third-party code — review source, pin a version (`/plugin marketplace add coo-quack/claude-code-marketplace` → `/plugin install sensitive-canary@coo-quack`). **Expect false positives on placeholder values** (it WILL block this kit's own `.env.example`; a masked preview is not proof of a live secret) — use the narrowest allow tag for that one read, never a standing `[allow-all]`. Declined/failed install? Note it here; § 8 is the fallback. Boundaries: settings.json denies cover file Read/Edit only (not shell), and none of this transfers to non-Claude tools.
+- **Secret-scanning in the AI loop is optional and bounded** — setup, false positives, and what it does *not* cover: `secure_coding.md` § 8. Not installed? Note that here.
 
 ## Production
 

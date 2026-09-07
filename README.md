@@ -1,6 +1,6 @@
 # ERP Customer Portal — Claude Code Primer
 
-**Version 0.22.0** (2026-09-05) — see `CHANGELOG.md`. Record this version in
+**Version 0.22.1** (2026-09-05) — see `CHANGELOG.md`. Record this version in
 your adopted repo (adoption step 1) so you can diff against future releases
 (see **Staying current** below).
 

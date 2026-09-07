@@ -573,6 +573,31 @@ future sessions. For deployed environments, secrets live in the host's
 secret store (CI secrets, platform env vars, a secrets manager) and are
 injected at runtime — never baked into build artifacts.
 
+### Defense in depth for AI-assisted work (optional, Claude Code)
+
+The `sensitive-canary` plugin catches secrets and PII **before they enter the
+model's context** — a different layer from everything above, which protects
+data at rest and in transit.
+
+It is third-party code: review the source and pin a version.
+`/plugin marketplace add coo-quack/claude-code-marketplace` →
+`/plugin install sensitive-canary@coo-quack`.
+
+**Expect false positives on placeholder values.** It will block this kit's
+own `.env.example`, and it reads structured identifiers — a regulation clause
+number can look like a phone number. A masked preview is not proof of a live
+secret. Use the narrowest allow tag for that one read; never a standing
+`[allow-all]`, which disables the thing you installed.
+
+**Its boundaries, which matter more than its coverage:**
+
+- `settings.json` deny rules cover the file Read/Edit tools only — **not**
+  shell output, so a `cat` of a secret still reaches context.
+- None of it transfers to other AI tools. The rules in this section are the
+  defense there.
+- Declined or failed to install? Note that in `CLAUDE.md` § Security. The
+  rotation protocol below is the fallback either way.
+
 ### If a secret is exposed anyway — rotation protocol
 
 If a key is pasted into an AI chat, read from a file by an AI tool,
