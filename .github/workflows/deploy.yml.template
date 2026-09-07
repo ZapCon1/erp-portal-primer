@@ -1,0 +1,205 @@
+# Deploy — gated, manual, and verified after the fact.
+#
+# ADOPTERS: rename this to `deploy.yml` when you have somewhere to deploy to,
+# then delete the target blocks you are not using. It is shipped as a
+# `.template` so a half-configured deploy cannot fire on your first push.
+#
+# THE TWO GATES THAT MATTER (docs/GITHUB.md, GH-6):
+#   1. `needs: [verify]` — the deploy job cannot start unless the gates pass.
+#      This is machine-enforced here, not a branch-protection setting someone
+#      may have forgotten.
+#   2. `environment: production` — GitHub pauses and waits for a human click,
+#      but ONLY if you added a required reviewer to that environment. Do it:
+#      Settings > Environments > production > Required reviewers.
+#      Without it, the environment line is decoration.
+#
+# Both, deliberately. A red build must not deploy, and a green build must not
+# deploy itself at 2am because a merge landed.
+
+name: Deploy
+
+on:
+  workflow_dispatch:              # a human starts it, on purpose
+    inputs:
+      confirm:
+        description: 'Type the environment name to confirm'
+        required: true
+        default: ''
+  # Optional: deploy on a version tag. Leave commented until one deploy has
+  # succeeded by hand — the first automated deploy should never be the first
+  # deploy (STOP-6: verify the artifact, not the exit code).
+  # push:
+  #   tags: ['v*']
+
+permissions:
+  contents: read
+  packages: write               # only for pushing to GHCR; drop if you use ECR
+
+concurrency:
+  group: deploy-production      # never two deploys at once — they race on migrations
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------- verify --
+  # Deploy what you have actually checked. This duplicates CI on purpose: CI
+  # protects the merge, this protects the deploy, and they can drift apart.
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: bash scripts/gates.sh        # SEC-2 polarity, PIN-1..4
+      - run: bash scripts/graduation.sh   # rules that have armed as the app grew
+
+  # ----------------------------------------------------------------- build --
+  build:
+    needs: [verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: meta
+        # Tag by commit SHA, never `latest`. `latest` makes rollback guesswork
+        # and makes "what is actually running?" unanswerable.
+        run: echo "image=ghcr.io/${{ github.repository }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.image }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------------------------------------------------------------- deploy --
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production      # <- the human gate. Add a required reviewer.
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Confirm the operator meant it
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          [ "${{ inputs.confirm }}" = "production" ] \
+            || { echo "::error::type 'production' to confirm"; exit 1; }
+
+      # =====================================================================
+      # TARGET A — VPS + Docker Compose  (the kit's default; Hetzner, DO,
+      # Linode, Coolify). Keep this block, delete the others.
+      #
+      # OPS-2: compose's `service_completed_successfully` is the only
+      # one-shot construct that blocks for free — the migrate service must
+      # exit 0 before web and worker start. That is already wired in
+      # docs/runbooks/deploy.template.md's skeleton, so `up -d` is enough.
+      # =====================================================================
+      - name: Deploy to VPS over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /srv/app
+            echo "IMAGE=${{ needs.build.outputs.image }}" > .env.image
+            docker compose pull
+            # `up -d` honours depends_on: migrate must exit 0 first (OPS-2).
+            docker compose up -d --remove-orphans
+            docker image prune -f --filter "until=168h"
+
+      # =====================================================================
+      # TARGET B — AWS ECS / Fargate  (and GovCloud: identical except the
+      # region and that your image must live in an in-partition ECR repo —
+      # docs/DEPLOYMENT_TARGETS.md § AWS GovCloud).
+      #
+      # OPS-2 here is NOT free: the migration is a standalone task you must
+      # wait on and read the exit code from. A service container would run
+      # once per task and race itself.
+      # =====================================================================
+      # - uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE }}   # OIDC, not static keys
+      #     aws-region: us-east-1        # GovCloud: us-gov-west-1
+      # - name: Run migrations as a one-shot task (OPS-2)
+      #   run: |
+      #     set -euo pipefail
+      #     TASK=$(aws ecs run-task --cluster "$CLUSTER" --task-definition "$MIGRATE_TASK_DEF" \
+      #            --launch-type FARGATE --network-configuration "$NETCFG" \
+      #            --query 'tasks[0].taskArn' --output text)
+      #     aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK"
+      #     CODE=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK" \
+      #            --query 'tasks[0].containers[0].exitCode' --output text)
+      #     [ "$CODE" = "0" ] || { echo "::error::migration exited $CODE"; exit 1; }
+      # - name: Update the web and worker services
+      #   run: |
+      #     # The worker is its own service, never the web service scaled to N,
+      #     # or you get N overdue-invoice flips a night.
+      #     aws ecs update-service --cluster "$CLUSTER" --service web    --force-new-deployment
+      #     aws ecs update-service --cluster "$CLUSTER" --service worker --force-new-deployment
+      #     aws ecs wait services-stable --cluster "$CLUSTER" --services web worker
+
+      # =====================================================================
+      # TARGET C — Azure Container Apps  (and Azure Government)
+      # OPS-2: the migration is a Job; read its completion status.
+      # =====================================================================
+      # - uses: azure/login@v2
+      #   with: { creds: ${{ secrets.AZURE_CREDENTIALS }} }
+      # - run: |
+      #     az containerapp job start -n migrate -g "$RG"
+      #     # poll until Succeeded/Failed, then fail the step on Failed
+      #     az containerapp update -n web    -g "$RG" --image "${{ needs.build.outputs.image }}"
+      #     az containerapp update -n worker -g "$RG" --image "${{ needs.build.outputs.image }}"
+
+      # =====================================================================
+      # TARGET D — PaaS (Fly.io · Render · Railway)
+      # OPS-2 is handled by the platform: Fly's `release_command`, Render's
+      # pre-deploy command. Both abort the deploy on non-zero — confirm yours
+      # does before trusting it.
+      # =====================================================================
+      # - run: flyctl deploy --image "${{ needs.build.outputs.image }}"
+      #   env: { FLY_API_TOKEN: "${{ secrets.FLY_API_TOKEN }}" }
+
+      # ------------------------------------------------------------------
+      # Verify the deploy, do not assume it. An exit code says the command
+      # ran, not that the app is serving (STOP-6). /api/health returns 200
+      # only after a real database round-trip.
+      # ------------------------------------------------------------------
+      - name: Health check
+        run: |
+          set -euo pipefail
+          URL="${{ secrets.HEALTHCHECK_URL }}"
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 5 "$URL" >/dev/null; then
+              echo "healthy after ${i} attempt(s)"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::app did not become healthy — see docs/runbooks/deploy.md § Rollback"
+          exit 1
+
+      - name: What to do if that failed
+        if: failure()
+        run: |
+          echo "Rollback: redeploy the previous image tag."
+          echo "  git log --oneline -5   # the SHA before this one is your previous image"
+          echo "Full procedure: docs/runbooks/deploy.md § Rollback"
+          echo "A failed migration does NOT roll back with the image — see the runbook."

@@ -15,6 +15,54 @@ round's "four checks could not fail" had reintroduced the same class. This
 release is the response, and the centrepiece is a harness that makes the
 class detectable instead of recurring.
 
+### The deploy, scaffolded and gated
+
+- **New `.github/workflows/deploy.yml.template`** — `verify → build → deploy`.
+  `verify` re-runs the gates (CI protects the merge, this protects the
+  deploy, and they drift apart); `build` tags by commit SHA, never `latest`,
+  because `latest` makes rollback guesswork; `deploy` carries
+  `environment: production` — with the file saying plainly that **without a
+  required reviewer on that environment the line is decoration** — plus a
+  `concurrency` group so two deploys cannot race on migrations.
+- **Four target blocks, each honouring its own `OPS-2` one-shot construct**,
+  since that is what differs per substrate and is what people get wrong: VPS
+  + Compose (default; `service_completed_successfully` is the only one that
+  blocks for free), ECS/Fargate and GovCloud (`run-task` → `wait
+  tasks-stopped` → **read the exit code**), Azure Container Apps (a Job),
+  PaaS (the platform aborts — confirm yours does).
+- It **verifies rather than assumes**: polls `/api/health` and fails if the
+  app never serves, then prints the rollback path and warns that a failed
+  migration does not roll back with the image (`STOP-6`).
+- **New `docs/runbooks/Dockerfile.template`** — one image, three entrypoints
+  (migrate · web · worker), non-root, `npm ci` not `install`. `Dockerfile`
+  had appeared nowhere in the kit while the runbook ran `docker build .`.
+  Its `ENV NODE_ENV=production` carries a warning that it is a convenience
+  and **not** the `SEC-2` control, since an image can be run with that
+  overridden.
+
+### A check that could not fail, found by CI rather than by review
+
+`scripts/kit-check.sh` check 11 used `... | grep -q X && err`. Under
+`set -o pipefail` that construct **cannot fail**: `grep -q` exits on its
+first match and closes the pipe, upstream dies of SIGPIPE, the pipeline
+reports non-zero, and the `&& err` never runs. It had been inert for two
+releases, in the file whose whole job is catching checks that cannot fail.
+Windows timing masked it intermittently; Linux CI failed on it every time.
+Fixed by capturing into a variable, and kit-check now **rejects the
+construct anywhere in `scripts/`** so it cannot return.
+
+### `MODULES.md` split — 708 → 584 lines
+
+The three integration sections with the most detail (Toolpath 75, email 58,
+file storage 56) moved to `docs/modules/`. Each keeps its heading and a
+summary in `MODULES.md`, so all six external `§` references still resolve —
+along with the facts that are expensive to learn late: Toolpath speaks
+**millimetres** (a US shop reading inches is out by 25.4× in a number that
+feeds a price), email **blocks portal login**, and the app owns the rev
+letter rather than Dropbox. The heaviest sections are now Compliance
+posture, Doc Control and the dependency graph, rather than an optional DFM
+integration.
+
 ### Rules that arm themselves — new `scripts/graduation.sh`
 
 A primer has no application, so a whole class of rule cannot be enforced in

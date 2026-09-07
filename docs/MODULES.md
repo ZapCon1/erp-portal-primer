@@ -416,59 +416,24 @@ SharePoint is a different module — see below.
 
 ### File storage — Box · Dropbox · SharePoint/OneDrive · Google Drive
 
-**Status:** new. The most-requested integration in a shop that already
-lives in one of these, and the one with the most hidden consequences.
+Keep using **Box · Dropbox · SharePoint/OneDrive · Google Drive** instead of,
+or alongside, the kit's own storage. **Three modes, and you must pick one:**
+*reference* (link only), **ingest (recommended)**, or *two-way sync* (two
+sources of truth for the same bytes — avoid).
 
-**The default is the kit's own storage** (S3-compatible, tenant-first
-layout, `docs/STACK.md` § Part viewing). Using an outside service is a
-deliberate trade, not an upgrade — make it knowingly.
+The consequences that decide the mode:
 
-**Three modes. Pick one and say which; they are not interchangeable.**
+- Their sharing settings become **your access control**.
+- A download straight from the service **never reaches your audit log**
+  (`CUI-2`).
+- **Doc control's rev letter beats the service's own version history**
+  (`DOC-5`) — running both is a second-source-of-truth failure that fails
+  quietly.
+- Controlled files stay **proxied through the app**; derivatives always live
+  in your storage.
 
-| Mode | What it means | Honest read |
-|---|---|---|
-| **Reference** | The file stays in Box/Dropbox. You store a pointer and a link. | Cheapest. The app never really has the file — no thumbnails, no CAD derivatives, no portal preview, and no audit of who opened it. |
-| **Ingest** | On upload the file is copied into your storage; theirs is the drop-off. | **The recommended one.** Staff keep the folder habit they already have; the app owns the copy that matters. |
-| **Two-way sync** | Both sides authoritative, changes propagate. | Two sources of truth for the same bytes, plus conflict resolution. Avoid unless someone insists and then argue once. |
-
-**Four consequences people discover late:**
-
-1. **Their permission model becomes your permission model.** The kit's
-   tenancy rests on every portal query filtering by `clientId`, with
-   files laid out tenant-first. Once the file lives in Box, *Box's*
-   sharing settings decide who can read it — and one "anyone with the
-   link" folder silently bypasses every auth wrapper you wrote. In
-   Reference mode this is not a bug you can fix in your code. Ingest
-   mode is partly why it's recommended.
-2. **Audit stops at your boundary.** A download straight from Dropbox
-   never reaches your audit log. For export-controlled files and for
-   AS9100 records this defeats the requirement — `docs/STACK.md`
-   § Part viewing already says controlled files get proxied through the
-   app so the access is logged. That rule outranks the convenience.
-3. **Doc control owns revisions — the storage service does not.** This
-   is the collision worth planning for: Box, Dropbox, and SharePoint all
-   keep their own version history, and Doc Control keeps rev letters
-   with approval state. **Two version histories for one drawing is a
-   second source of truth**, exactly like the `PartRevision` case above.
-   The rule: the app owns `DocumentRevision`; the service is a dumb blob
-   store whose native versioning is *not* the record. If someone edits
-   in place in Dropbox and the rev letter doesn't move, your controlled
-   document quietly became uncontrolled.
-4. **Derivatives stay in your storage.** GLB previews and thumbnails are
-   generated data the viewer loads by presigned URL — they belong beside
-   your `FileDerivative` rows, not in the customer's Dropbox, whatever
-   mode the original uses.
-
-**Export-controlled and CUI**: the `mayReceiveControlledData` gate
-applies unchanged. Commercial Box/Dropbox/Drive tenants are third-party
-hosted services; some vendors offer government-community tiers, and
-whether one satisfies your obligation is an assessor question, not a
-marketing-page question (`docs/DEPLOYMENT_TARGETS.md` § The egress trap).
-
-**Portal face:** none directly — customers keep using the portal's file
-view, which is the point. The integration changes where staff put files,
-not how customers get them. If a customer would end up in someone
-else's Box, the design is wrong.
+📄 **Full detail: [`docs/modules/file-storage.md`](modules/file-storage.md)** —
+the three modes compared, per-vendor notes, and the ingest pipeline.
 
 ### Accounting sync — QuickBooks · Xero · Puzzle
 
@@ -481,78 +446,25 @@ duplicate in someone's books.
 
 ### Toolpath (DFM analysis)
 
-**Status:** new. API at `developers.toolpath.com`.
+Send an uploaded CAD part to Toolpath's API, get design-for-manufacturability
+findings back, attach them to the part revision, surface them in the estimate.
+**Requires Part Viewing** — it reuses the same file and the same
+async-derivation pattern.
 
-A CAD-analysis service: it takes a part and returns
-design-for-manufacturability information. **Verified against the live spec
-on 2026-09-05** (`GET https://api.toolpath.com/v1/openapi.json`, Toolpath
-Engine API v1.3.3) — pin the spec version you generate a client against,
-because everything below is a fact about *that* version:
+Three facts that are expensive to learn late, kept here on purpose:
 
-- **Paths**: `/v1/parts`, `/v1/parts/{id}`, `/v1/parts/{id}/features`,
-  `/v1/holders`, `/v1/jobs`, `/v1/jobs/{id}`, `/v1/jobs/{id}/events`,
-  `/v1/keys/validate`, `/health`.
-- **Auth is an API key sent as a `Bearer` credential** (`type: http`,
-  `scheme: bearer`) — not an `X-API-Key` header, which is the wrong guess a
-  hand-rolled client makes first. Company scope, not OAuth.
-- **`/v1/keys/validate` exists** — use it as the integration's health check
-  so a dead key surfaces before a job does, not after.
+- ⚠️ **Everything is millimetres and degrees.** A US shop reading a DFM
+  dimension as inches is out by 25.4× — in a number that feeds a price.
+- **No webhooks, but do not poll**: consume the server-sent event stream at
+  `/v1/jobs/{id}/events`.
+- Auth is a **Bearer** credential, and CORS is per-key — never put the key in
+  a browser.
 
-⚠️ **Everything is millimetres and degrees.** The spec is explicit: all
-dimensional values, in parts and in feature details, are in **mm**; all
-angles in **degrees**; each part response repeats it in a `units` field. A
-US shop quoting in inches that treats a DFM dimension as inches is out by
-25.4×, silently, in a number that feeds a price. **Convert at the boundary,
-store one unit, and assert the `units` field on every response** — this is
-the same class of bug as an unlabelled timezone or a float dollar, and it
-belongs in the same category of care (`MONEY-1`).
+**Export-controlled and CUI files must never be sent** (`CUI-1`); the gate is
+structural, at the uploader, not a reminder.
 
-⚠️ **Never put the key in the browser.** CORS is configured per key, so a
-key with allowed origins *will* work from client-side code — and a Bearer
-credential in a client bundle is a leaked credential. Server-to-server
-only, from the worker, with the key in the host's secret store
-(`secure_coding.md` § 8). A key with no allowed origins is server-only by
-construction; prefer that.
-
-Why it fits this kit unusually well: **the same uploaded STEP file feeds
-two async derivations off one pattern.** Part Viewing runs OCCT to GLB
-for the viewer; Toolpath uploads and gets DFM back for the quote. Same
-`File`, same queue shape, same pending/ready/failed states PORTAL_UX
-already requires you to render. The second one is nearly free once the
-first exists.
-
-**There are no webhooks — but do not poll.** The spec declares an empty
-`webhooks` section, so nothing calls you back. It *does* offer
-**`GET /v1/jobs/{id}/events`, a server-sent event stream**: it sends the
-current job immediately, then every subsequent status, progress or error
-change while the connection stays open. Consume that from the worker rather
-than looping on `GET /v1/jobs/{id}` — it is fewer requests, lower latency,
-and it gives you progress rather than a binary done/not-done.
-
-**Reconnection is the part to get right.** The spec says a dropped
-connection means reconnecting to receive the latest snapshot before
-resuming. So the worker still needs a give-up bound and a resume path, and
-the job row still needs `pending / processing / ready / failed` — an
-interrupted stream must not leave a part stuck in `processing` forever.
-Either way this lives in the worker, never in a request handler waiting on
-a third party.
-
-Where the output lands: DFM findings attach to the `PartRevision` and
-surface in **Estimates** — manufacturability feedback is quoting input,
-which is the actual friction this removes.
-
-⚠️ **The export-control gate is mandatory here.** Toolpath is a
-third-party hosted service, and `docs/STACK.md` § Part viewing already
-says flagged files are never sent to one. An export-controlled STEP file
-must be refused at the uploader by the `mayReceiveControlledData` check
-above — not filtered downstream, and not left to the operator to
-remember.
-
-**Open decision, don't default it:** is DFM output customer-visible?
-Staff-only is the safe read — it's your cost intelligence. But a portal
-that tells a customer "this pocket is unmachinable as drawn" before they
-order is a real friction-remover. Decide it explicitly per the parity
-rule; either answer is fine, silence isn't.
+📄 **Full detail: [`docs/modules/toolpath.md`](modules/toolpath.md)** — endpoints,
+the derivation pipeline, error handling, and what to do when the API changes.
 
 ### Payments
 
@@ -562,61 +474,25 @@ trusting the payload.
 
 ### Transactional email (Resend · Postmark · SES)
 
-**Start this on day one, before you need it.** Not because email is hard,
-but because it has the longest lead time of anything in the kit, and it
-**blocks the portal**: customer login is a magic link, so until mail
-actually arrives, no customer can get in. Domain verification means adding
-DNS records and waiting for propagation — minutes if you are lucky, a day if
-your DNS lives somewhere awkward. Every other setup step is under your
-control; this one is not.
+Resend (default) · Postmark · SES. Auth, estimates, invoices, alerts.
 
-**Setup, in the order that avoids being blocked:**
+**Start this on day one, before you need it.** It has the longest lead time
+of anything in the kit and it **blocks the portal**: customer login is a
+magic link, so until mail actually arrives, no customer can get in. Domain
+verification means DNS records and propagation — minutes if you are lucky, a
+day if your DNS lives somewhere awkward.
 
-1. **Pick a provider** — Resend (the kit's default, pairs with React Email
-   for typed, previewable templates), Postmark, or SES if you are already in
-   AWS and want mail in-partition (`docs/DEPLOYMENT_TARGETS.md` § The egress
-   trap). All three are equivalent for this app; do not spend a day choosing.
-2. **Start domain verification immediately.** You will add **SPF**, **DKIM**
-   and ideally **DMARC** records for a subdomain you send from —
-   `mail.yourshop.com` keeps your main domain's sending reputation separate
-   from your website's. Do this on day one even if you will not send for
-   weeks.
-3. **Do not wait for it to build anything.** In dev the mailer writes the
-   message to the console, magic-link URL included, so you can log in as a
-   customer with no provider configured at all. That fallback is what keeps
-   DNS off the critical path.
-4. **Verify before go-live**, not before development: send one real magic
-   link to a real inbox, and check it does not land in spam.
-
-**The rules that matter once it is live:**
-
+- In dev the mailer writes the message to the console, **magic link included**,
+  so DNS never blocks development.
 - **The dev fallback must be unable to run in production**, the same way the
   auth stub cannot (`SEC-2`). A mailer that silently logs instead of sending
-  is worse than one that errors: invoices and magic links stop arriving and
-  nothing tells you.
-- **Every send is logged, and a failure alerts a human** (`OPS-3`,
-  `CLAUDE.md` § No Swallowed Failures). A dead sender means invoices and
-  logins silently stop, and you find out when a customer calls — which is
-  the friction this whole system exists to remove.
-- **Handle bounces and complaints.** Sending repeatedly to a dead address
-  wrecks your sender reputation and takes the working addresses down with
-  it. Keep a suppression list; a hard bounce marks the contact and surfaces
-  on the client record so a human fixes it.
-- **Magic-link mail follows `secure_coding.md` § 13** — short expiry, one
-  active link, and remember that mail-security scanners pre-fetch links, so
-  a link must not be consumed by a bot's GET.
-- **Email is an egress path.** An invoice PDF or a job-status mail carries
-  your content to a third party. If Phase 3 said ITAR or CUI that matters
-  directly: keep controlled data out of bodies and attachments, or send
-  in-partition (`CUI-1`).
-- **Customer-facing copy runs through `/perp-voice`** — auth, money and
-  legal strings excepted. Email is where the shop's voice reaches the
-  customer most often.
+  is worse than one that errors.
+- Email is an **egress path** — an invoice PDF carries your content to a third
+  party (`CUI-1`).
 
-**Portal face:** none, but the *effects* are portal-visible — a customer
-whose magic link never arrives experiences it as "the portal is broken".
-Give the login page a "didn't get it? request a new link" path and the
-request-ID pattern from `secure_coding.md` § 6.
+📄 **Full detail: [`docs/modules/transactional-email.md`](modules/transactional-email.md)**
+— provider setup order, SPF/DKIM/DMARC, bounces and suppression, and the
+portal-side failure the customer actually experiences.
 
 ## Compliance posture (a dimension, not a module)
 

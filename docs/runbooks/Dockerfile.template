@@ -1,0 +1,59 @@
+# Dockerfile — one image, two entrypoints (web and worker).
+#
+# The compose skeleton in deploy.template.md runs THIS image three times:
+# once as a one-shot migration, once as `node server.js`, once as
+# `node worker.js`. One image means the worker can never drift from the web
+# code that enqueues its jobs — which is the failure that produces a job
+# nobody can explain.
+#
+# Requires `output: 'standalone'` in next.config (that is what produces
+# server.js). /perp-build-core writes it; docs/STACK.md § Deployment pins it.
+
+# ---------- deps ----------
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+# `npm ci`, never `npm install` — PIN-2. The lockfile is authoritative here
+# or the pins in package.json are decoration.
+RUN npm ci
+
+# ---------- build ----------
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# Codegen BEFORE the build (the default stack needs it; a major version bump
+# can remove this command outright — PIN-3 catches that).
+RUN npx prisma generate
+RUN npm run build
+
+# ---------- runtime ----------
+FROM node:22-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+# NOTE: this line is a convenience, NOT the SEC-2 control. The auth guard must
+# fail closed on its own — asserting development positively — because an image
+# can be run with NODE_ENV overridden. See /perp-build-core step 11.
+
+# Run as a non-root user. A container escape is worth less from uid 1001.
+RUN addgroup -S app && adduser -S app -G app
+
+# Standalone output already contains the pruned node_modules it needs.
+COPY --from=build --chown=app:app /app/.next/standalone ./
+COPY --from=build --chown=app:app /app/.next/static ./.next/static
+COPY --from=build --chown=app:app /app/public ./public
+# Prisma schema + engines are needed by `prisma migrate deploy` in the
+# one-shot migrate service, and by the client at runtime.
+COPY --from=build --chown=app:app /app/prisma ./prisma
+COPY --from=build --chown=app:app /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build --chown=app:app /app/node_modules/@prisma ./node_modules/@prisma
+# <TODO: if your worker entrypoint is not emitted by the Next build, copy it here>
+
+USER app
+EXPOSE 3000
+
+# Compose/ECS override this per service:
+#   migrate → npx prisma migrate deploy   (one-shot, must exit 0 — OPS-2)
+#   web     → node server.js
+#   worker  → node worker.js
+CMD ["node", "server.js"]

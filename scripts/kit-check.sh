@@ -210,12 +210,17 @@ echo "11. every [module]-tagged catalog row links into MODULES.md's map"
 # and the check still passed. Now it asserts per row, which is what it claimed.
 mod_rows=$(grep -c '\*\*\[module\]\*\*' docs/FEATURE_CATALOG.md || true)
 [ "$mod_rows" -gt 0 ] || err "no [module] tags in FEATURE_CATALOG.md — the boundary map lost its anchor rows"
-grep -n '^|.*\*\*\[module\]\*\*' docs/FEATURE_CATALOG.md | while IFS=: read -r ln rest; do
+# NB: do NOT pipe this into `grep -q ... && err`. grep -q exits on the first
+# match and closes the pipe; upstream dies of SIGPIPE, and under `set -o
+# pipefail` that makes the whole pipeline non-zero - so the `&& err` never
+# ran and this check could not fail. Windows timing hid it; Linux CI did not.
+unlinked=$(grep -n '^|.*\*\*\[module\]\*\*' docs/FEATURE_CATALOG.md | while IFS=: read -r ln rest; do
   case "$rest" in
     *MODULES.md*|*DOMAIN_MODEL.md*|*STACK.md*) : ;;
-    *) echo "::error::FEATURE_CATALOG.md:$ln is tagged [module] but points at no boundary doc" ;;
+    *) printf '%s ' "$ln" ;;
   esac
-done | grep -q '::error::' && err "a [module] row does not link into its boundary doc"
+done)
+[ -z "$unlinked" ] || err "FEATURE_CATALOG.md row(s) $unlinked are tagged [module] but link to no boundary doc"
 
 echo "12. DEPLOYMENT_TARGETS.md is registered and the never-serverless pin still reads as shape-not-vendor"
 [ -f docs/DEPLOYMENT_TARGETS.md ] || err "docs/DEPLOYMENT_TARGETS.md missing (README, CLAUDE.md, STACK.md and the deploy runbook all point at it)"
@@ -388,6 +393,33 @@ grep -q 'Toolpath (DFM) .*Part Viewing' docs/MODULES.md   || err "MODULES.md's g
 grep -q '## Contents' docs/MODULES.md   || err "MODULES.md lost its table of contents (600+ lines, 17 sections)"
 grep -q '## Contents' docs/CONTROLS.md   || err "CONTROLS.md lost its table of contents"
 
+# The three integration detail pages. MODULES.md keeps the summary plus the
+# facts that are dangerous to miss; the long form lives here. If a stub loses
+# its pointer, the detail becomes unreachable rather than merely long.
+# The deploy scaffold. The runbook curls a health endpoint and runs
+# `docker build .`; before this shipped, neither artifact existed anywhere in
+# the kit, so the runbook described a deploy nobody could perform.
+[ -f docs/runbooks/Dockerfile.template ] || err "Dockerfile.template missing - deploy.template.md runs 'docker build .' against nothing"
+[ -f .github/workflows/deploy.yml.template ] || err "deploy.yml.template missing - there is no gated deploy scaffold"
+grep -q 'needs: \[build\]' .github/workflows/deploy.yml.template || err "the deploy job no longer depends on the build/verify chain - a red build could deploy (GH-6)"
+grep -q 'environment: production' .github/workflows/deploy.yml.template || err "the deploy job lost its production environment - the human gate is gone (GH-6)"
+grep -qi 'required reviewer' .github/workflows/deploy.yml.template || err "deploy.yml.template no longer says the environment needs a required reviewer, without which the gate is decoration"
+grep -qi 'api/health' .github/workflows/deploy.yml.template || err "the deploy no longer verifies the app is serving - an exit code is not proof (STOP-6)"
+grep -q "output: 'standalone'\|standalone" docs/runbooks/Dockerfile.template || err "Dockerfile.template lost the standalone requirement (there is no server.js without it)"
+grep -q 'npm ci' docs/runbooks/Dockerfile.template || err "Dockerfile.template uses npm install - the lockfile becomes advisory (PIN-2)"
+for t in "VPS" "ECS" "Container Apps" "Fly"; do
+  grep -qi "$t" .github/workflows/deploy.yml.template || err "deploy.yml.template lost the $t target block"
+done
+
+for m in toolpath transactional-email file-storage; do
+  [ -f "docs/modules/$m.md" ] || err "docs/modules/$m.md missing - MODULES.md points at it"
+  grep -q "modules/$m.md" docs/MODULES.md || err "MODULES.md no longer links to docs/modules/$m.md - the detail is orphaned"
+done
+grep -q 'docs/modules/' README.md || err "docs/modules/ is not registered in README"
+grep -qi 'endpoint\|/v1/' docs/modules/toolpath.md || err "the Toolpath detail page lost its API specifics"
+grep -qiE 'SPF|DKIM' docs/modules/transactional-email.md || err "the email detail page lost the domain-verification path"
+grep -qi 'ingest' docs/modules/file-storage.md || err "the file-storage detail page lost the three modes"
+
 grep -qi 'millimetres' docs/MODULES.md || err "MODULES.md lost the Toolpath mm/degrees unit warning (a 25.4x error in a number that feeds a price)"
 grep -qi 'server-sent event' docs/MODULES.md || err "MODULES.md reverted to polling; the API offers an SSE stream"
 grep -qi 'Bearer' docs/MODULES.md || err "MODULES.md lost the Toolpath Bearer-auth detail"
@@ -409,6 +441,15 @@ grep -q 'exportControlled' docs/DOMAIN_MODEL.md   && err "DOMAIN_MODEL.md still 
 # The mechanism that converts "not built yet" into a real gate once an app
 # exists. Without it, every dormant rule depends on someone re-reading a
 # status column on exactly the right day.
+# Anti-pattern guard. `... | grep -q X && err` is silently broken under
+# `set -o pipefail`: grep -q exits on the first match, upstream dies of
+# SIGPIPE, the pipeline reports non-zero, and the `&& err` never runs. It
+# shipped once and could not fail for two releases. Capture into a variable
+# and test that instead.
+if grep -nE '^[^#]*\| *grep -q.*&& *err' scripts/*.sh | grep -v 'construct cannot fail' >/dev/null 2>&1; then
+  err "a script uses '| grep -q ... && err' - that construct cannot fail under pipefail (SIGPIPE). Capture the output into a variable and test it"
+fi
+
 [ -f scripts/graduation.sh ] || err "scripts/graduation.sh missing - the dormant compliance and integrity rules would have nothing to arm them"
 grep -q 'Rules that arm themselves' docs/CONTROLS.md || err "CONTROLS.md lost the graduation section - the dormant rules stop being discoverable"
 grep -q 'graduation.sh' .claude/skills/perp-setup-testing/SKILL.md || err "the CI template no longer runs graduation.sh, so arming rules would never gate"

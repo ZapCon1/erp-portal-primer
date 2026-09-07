@@ -6,6 +6,18 @@
 
 ## The shape
 
+**The two files this runbook assumes exist**, both shipped as templates
+because nothing here can guess your host:
+
+- `docs/runbooks/Dockerfile.template` — one image, three entrypoints
+  (migrate · web · worker). One image means the worker cannot drift from the
+  code that enqueues its jobs.
+- `.github/workflows/deploy.yml.template` — the gated deploy. Rename to
+  `deploy.yml` when you have somewhere to send it, delete the target blocks
+  you are not using, and **add a required reviewer to the `production`
+  environment** or the human gate is decoration (`GH-6`, `docs/GITHUB.md`).
+
+
 ```yaml
 # docker-compose.yml — skeleton; fill the <TODO>s
 services:

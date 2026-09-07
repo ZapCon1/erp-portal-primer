@@ -360,7 +360,7 @@ it, a missing requirement **fails the build**.
 | `ControlledDocument`/`DocumentRevision` exist | `DOC-1`..`DOC-5` | the five acceptance tests named in `docs/MODULES.md` § Doc Control |
 | `Nonconformance`/`Inspection` exist | `QUAL-1` | the reconciliation test |
 | a `portal/` route group exists | `A11Y-1`, `TENANT-1` | the a11y scan uncommented in CI, and a cross-tenant 404 test |
-| a `Dockerfile` or compose file exists | `OPS-3`, `GH-6` | error tracking wired; and a reminder that the deploy gate is a GitHub setting |
+| a `Dockerfile` or compose file exists | `OPS-3`, `GH-6` | error tracking wired; and a reminder that the deploy gate is a GitHub setting. The scaffold is `.github/workflows/deploy.yml.template` — `needs:` plus a `production` environment reviewer |
 
 **The design rule: the rule arrives when the risk does.** Adding a `File`
 model is the moment export control starts mattering, and that is the moment

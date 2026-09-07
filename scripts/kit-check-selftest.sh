@@ -272,7 +272,7 @@ case_run 8 "a feature plan doc is never registered in the index" \
   sh -c "printf '# Ghost feature\n' > features/ghost.md"
 
 case_run 11 "a [module] catalog row stops linking into its boundary doc" \
-  "does not link into its boundary doc" \
+  "link to no boundary doc" \
   py_re docs/FEATURE_CATALOG.md '(MODULES|DOMAIN_MODEL|STACK)\.md' 'NOWHERE.md'
 
 case_run 16 "a previously-fixed panel finding regresses (BRAND unregistered)" \
@@ -455,6 +455,27 @@ grad_case "a portal route group arms A11Y-1"   "accessibility scan"   "$PKG; mkd
 
 grad_case "a Dockerfile arms OPS-3 (error tracking)"   "error tracking"   "$PKG; printf 'FROM node:20
 ' > Dockerfile"
+
+# --- the deploy scaffold: both gates and the post-deploy verification --------
+case_run 18 "the deploy job stops depending on verify/build (a red build could deploy)" \
+  "could deploy" \
+  py_re .github/workflows/deploy.yml.template 'needs: \[build\]' 'if: always()'
+
+case_run 18 "the production environment gate is removed (no human click)" \
+  "human gate is gone" \
+  py_re .github/workflows/deploy.yml.template 'environment: production' 'environment: none'
+
+case_run 18 "the deploy stops verifying the app actually serves" \
+  "exit code is not proof" \
+  py_re .github/workflows/deploy.yml.template 'api/health' 'api/ping'
+
+case_run 18 "the Dockerfile switches to npm install (lockfile becomes advisory)" \
+  "PIN-2" \
+  py_re docs/runbooks/Dockerfile.template 'npm ci' 'npm install'
+
+case_run 18 "a deploy target block is dropped" \
+  "lost the ECS target block" \
+  py_re .github/workflows/deploy.yml.template 'ECS' 'XYZ'
 
 # ------------------------------------------------------------------ coverage --
 echo
