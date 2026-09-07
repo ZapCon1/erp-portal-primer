@@ -105,6 +105,14 @@ scoping decision was already made in the interview; do not re-ask.
      means classifying them by hand, from memory.
    - **`IntegrationConnection.mayReceiveControlledData`** — boolean,
      **default false**. The egress gate's other half.
+   - **`User.exportEligible`** (and the same on the portal contact) —
+     boolean, **default false** (`CUI-6`). `CUI-1` gates which *services*
+     may receive controlled data; this gates which *people* may see it,
+     which is a separate export under ITAR's deemed-export rule and is not
+     covered by roles or tenancy. Check it wherever controlled data is
+     **rendered** — staff view, portal view, PDF export, email attachment —
+     not only at the API boundary, because the render is the release.
+     Default false so an unconsidered user is refused rather than served.
 
    (The enum supersedes the older boolean `File.exportControlled`, which
    could not distinguish CUI from export-controlled — a CMMC shop with no

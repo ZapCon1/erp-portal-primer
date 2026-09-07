@@ -4,6 +4,90 @@ All notable changes to the primer. Adopters: record the version you
 adopted in your repo (see README § How to adopt) so you can diff
 against future releases.
 
+## 0.22.0 — 2026-09-06
+
+**The ITAR/DoD rails.** A review pass over the primer with defense and
+aerospace work specifically in mind found that the kit's export-control
+model gated **services** (`mayReceiveControlledData`) and **files**
+(`File.classification`) — and never gated **people**. Five new rules close
+that and the AS9100 gaps beside it.
+
+### `CUI-6` — the deemed export, which was missing entirely
+
+Under ITAR, showing controlled technical data to a **foreign person is an
+export** — including an employee standing in your shop in Ohio. It has a
+name (a *deemed export*) and it needs a license first. "US person" means a
+citizen, a lawful permanent resident, or a protected individual; a work visa
+is not enough.
+
+The words "deemed export", "foreign person" and "US person" appeared **zero
+times** in ~9,000 lines. For an ERP whose whole job is showing drawings to
+staff and customers, that was the most consequential omission in the kit.
+
+- `User.exportEligible`, **default false**, provisioned in the first
+  migration by `/perp-build-core` — as schema-shaped and retrofit-hostile as
+  `File.classification`, because retrofitting it means auditing every past
+  drawing view from logs you may not have kept.
+- Checked wherever controlled data is **rendered** — staff view, portal
+  view, PDF export, email attachment — not only at the API boundary,
+  because the render is the release.
+- Three doors the rule covers that people forget: a staff login for a
+  foreign-national machinist, a portal login for a customer's foreign
+  contact, and an offshore contractor with database or repository access.
+- `/perp-scope` Phase 3 now asks it in plain language, and treats "not
+  sure" as a yes — the field costs one column now.
+- `graduation.sh` arms it the moment a `File` model exists.
+
+**`CUI-1` gates services; `CUI-6` gates people. Neither substitutes for the
+other** — a perfect egress gate still lets an ineligible employee open the
+drawing on screen.
+
+### `CUI-7`, `CUI-8` — markings, and the 72-hour clock
+
+- **`CUI-7`** A document that arrives marked must still be marked after your
+  app renders, exports or emails it. A stripped marking is an unmarked copy
+  of controlled data; PDF export is the usual culprit.
+- **`CUI-8`** Where the DFARS 7012 safeguarding clause flows down, a cyber
+  incident must reach DoD **within 72 hours of discovery**, via DIBNet. The
+  incident-response runbook had four scenarios and none mentioned it. It now
+  carries the clock, plus the prerequisite that actually decides whether you
+  make the deadline: **the DoD-approved medium assurance certificate takes
+  days to weeks to obtain**, so a shop starting that process during the 72
+  hours has already missed it. Also the 90-day media-preservation
+  expectation, which conflicts with the instinct to wipe and rebuild.
+- **FIPS-validated cryptography** added as a go-live gate — the clause asks
+  for validated modules, not merely strong algorithms, which constrains
+  platform and libraries and belongs with the hosting decision.
+
+### FCI is not CUI
+
+`/perp-scope` now separates them. **FCI** is the lighter tier (a short list
+of basic safeguards, self-assessed); **CUI** is the heavy one (the full NIST
+SP 800-171 control set and an assessment). The kit previously treated "CUI"
+monolithically, which over-builds for the FCI-only shop by months. If the
+owner cannot tell which they have, that is a question for their contracting
+officer, recorded rather than guessed.
+
+### AS9100 — `QUAL-2`, `QUAL-3`
+
+- **`QUAL-2`** A first article is an **AS9102**-shaped document set, not a
+  checkbox: every drawing characteristic ballooned and individually
+  reported. The kit had a `FirstArticle` entity and never named the
+  standard, so it would have been built as a boolean — and rebuilding it
+  later means re-ballooning drawings by hand. Also re-triggered by a
+  revision, a process change, a production lapse, or a new source.
+- **`QUAL-3`** Counterfeit-parts prevention, with the software half made
+  concrete: approved sources, certificates of conformance captured **as
+  files against the receipt** rather than a filing cabinet, and lot/heat
+  numbers traceable through to the shipped part. Record the source type so
+  "did this come from a broker?" stays answerable.
+
+Every new rule carries its acceptance test in `docs/MODULES.md`, a row in
+the rule index, and a kit-check assertion; six mutation cases prove those
+assertions fire.
+
+---
+
 ## 0.21.0 — 2026-09-06
 
 **The controls become controls.** A second 16-perspective panel review —

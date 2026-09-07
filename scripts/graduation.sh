@@ -149,11 +149,16 @@ fi
 echo
 echo "you store files"
 if [ "$has_file" = "1" ]; then
-  armed "CUI-1, CUI-2 - export control and CUI apply the moment files exist"
+  armed "CUI-1, CUI-2, CUI-6 - export control applies the moment files exist"
   grep -qi 'classification' "$schema" 2>/dev/null \
     || err "CUI-1: File has no classification field. Retrofitting it means classifying live files by hand, from memory - add it now even if you have no regulated data"
   grep -qi 'mayReceiveControlledData' "$schema" 2>/dev/null \
     || err "CUI-1: no mayReceiveControlledData on the integration/provider model - the egress gate has nothing to read"
+  # CUI-1 gates SERVICES. CUI-6 gates PEOPLE, and they are different exports:
+  # showing controlled technical data to a foreign person is a deemed export
+  # even inside the US. Roles and tenancy do not cover it.
+  grep -qiE 'exportEligible|exportEligibility' "$schema" 2>/dev/null \
+    || err "CUI-6: no per-user export-eligibility field. A foreign person seeing controlled technical data is an export (a deemed export) - retrofitting means auditing every past drawing view from logs you may not have kept"
 else
   sleeping "CUI-1, CUI-2 - no File model yet"
 fi
@@ -180,9 +185,14 @@ fi
 echo
 echo "you record quality data"
 if [ "$has_qual" = "1" ]; then
-  armed "QUAL-1 - quantities must reconcile"
+  armed "QUAL-1, QUAL-2 - quality records carry AS9100 obligations"
   grep -rqi 'scrap\|reconcil' . --include='*.test.ts' --exclude-dir=node_modules 2>/dev/null \
     || err "QUAL-1: no test asserting ordered = shipped + scrapped + reworked-out. A drift here bills a customer for parts they never got"
+  if grep -qi 'model FirstArticle' "$schema" 2>/dev/null; then
+    # AS9102 reports every ballooned drawing characteristic individually.
+    grep -qi 'characteristic' "$schema" 2>/dev/null \
+      || err "QUAL-2: FirstArticle has no characteristic-level model. AS9102 reports every ballooned drawing characteristic; rebuilding this later means re-ballooning drawings by hand"
+  fi
 else
   sleeping "QUAL-1 - no quality models yet"
 fi

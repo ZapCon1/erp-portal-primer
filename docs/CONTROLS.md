@@ -41,6 +41,9 @@ meet anywhere resolves here.
 | `CUI-1` | Flagged data never reaches a third party — `mayReceiveControlledData`, default false, checked at the uploader | `docs/MODULES.md` § Integration scaffold | dormant — arms on its trigger (§ Rules that arm themselves) |
 | `CUI-2` | Every access to a flagged file is audit-logged, including presigned-URL issuance | `docs/CONTROLS.md` § ITAR/EAR and CMMC/CUI | dormant — arms on its trigger (§ Rules that arm themselves) |
 | `CUI-3` | Audit records are retained for the contracted period | same | no |
+| `CUI-6` | Controlled technical data is gated on **person eligibility**, not only role — a foreign person seeing it is a deemed export | `docs/MODULES.md` § Compliance posture | dormant — arms with a `File` model |
+| `CUI-7` | Markings (CUI, export-controlled, distribution statements) survive render, export and email | same | dormant |
+| `CUI-8` | A reportable cyber incident reaches DoD within **72 hours** | `docs/runbooks/incident-response.md` | no — a rehearsed runbook step |
 | `CUI-4` | MFA on privileged access | same | no |
 | `CUI-5` | Delete sanitizes — the row *and* the stored object | same | no |
 | `DEP-1` | Dependencies are audited; vulnerabilities fixed before committing | `CLAUDE.md` § Dependency Hygiene | **yes** (`npm audit` in CI) |
@@ -69,6 +72,8 @@ meet anywhere resolves here.
 | `PIN-4` | Documented idioms match the installed major version | same | **yes** |
 | `PIN-5` | `docs/STACK.md`'s `_Reviewed:_` stamp is fresh | same | no — drift signal |
 | `QUAL-1` | Quantities reconcile: ordered = shipped + scrapped + reworked-out | `docs/MODULES.md` § Quality records | dormant — arms on its trigger (§ Rules that arm themselves) |
+| `QUAL-2` | A first article is an AS9102-shaped document set — every drawing characteristic ballooned and individually reported | same | dormant |
+| `QUAL-3` | Counterfeit-parts controls: approved sources, certs captured as files against the receipt, lot/heat traceable end to end | same | dormant |
 | `SCALE-1` | Every table carrying `clientId` gets a composite `(clientId, <primary filter>)` index, in its first migration | `docs/DOMAIN_MODEL.md` § Scale notes | no |
 | `SCALE-2` | Every list endpoint takes a limit; cursor preferred | same | no |
 | `SEC-2` | The dev-auth stub cannot boot outside development — a fail-closed assertion, not a checkbox | `secure_coding.md`; mechanism in `/perp-build-core` | **yes** |
@@ -248,6 +253,8 @@ wrong history.
 | `DOC-4` Prints are stamped and logged | Render asserts rev + timestamp + "uncontrolled when printed". | dormant — arms on its trigger (§ Rules that arm themselves) |
 | `DOC-5` The app owns the rev letter | If files live in Box/Dropbox/SharePoint, their native version history is **not** the record (`docs/MODULES.md` § File storage). | dormant — arms on its trigger (§ Rules that arm themselves) |
 | `QUAL-1` Quantities reconcile | ordered = shipped + scrapped + reworked-out. A drift here bills a customer for parts they never got — a `MONEY-1` failure wearing a quality costume. | dormant — arms on its trigger (§ Rules that arm themselves) |
+| `QUAL-2` First article per AS9102 | Characteristic-level reporting, not a checkbox. Re-triggered by a revision, a process change, a production lapse, or a new source. | dormant — arms on its trigger (§ Rules that arm themselves) |
+| `QUAL-3` Counterfeit-parts controls | Approved sources, certs of conformance captured against the receipt, lot/heat traceable through to the shipped part. | dormant — arms on its trigger (§ Rules that arm themselves) |
 
 ### ITAR/EAR and CMMC/CUI
 
@@ -264,6 +271,9 @@ with the test that proves it.
 | `CUI-3` Audit records are retained and protected | Retention is a decision, not a default. Write it down and check it is set. | dormant — arms on its trigger (§ Rules that arm themselves) |
 | `CUI-4` MFA on privileged access | Lands with real login (`SEC-2`), not after. | dormant — arms on its trigger (§ Rules that arm themselves) |
 | `CUI-5` Delete means gone | Sanitization, not a soft-delete flag — the row *and* the stored object. | dormant — arms on its trigger (§ Rules that arm themselves) |
+| `CUI-6` Person-level eligibility | ITAR's **deemed export** rule: releasing technical data to a foreign person is an export, wherever they are standing. Gate on the user, at every surface that renders the data. Schema-shaped — provision it in the first migration. | dormant — arms on its trigger (§ Rules that arm themselves) |
+| `CUI-7` Markings survive | A marked document must still be marked after your app renders, exports or emails it. A stripped marking is an unmarked copy of controlled data. | dormant — arms on its trigger (§ Rules that arm themselves) |
+| `CUI-8` 72-hour incident report | The DFARS 7012 safeguarding clause requires reporting a cyber incident to DoD within 72 hours, through DIBNet, using a DoD-approved medium assurance certificate — **which takes time to obtain, so get it before you need it**. | a rehearsed runbook step, not code |
 
 ⚠️ **The honest limit of all of this.** These controls make compliance
 *achievable*; they do not confer it. You still owe a system security plan, a
@@ -463,6 +473,17 @@ and a gate that disappears when a checklist is tidied away was never a gate.**
       integration and watching it be refused.
 - [ ] `CUI-2` Access to flagged files is audit-logged, including the
       presigned-URL issuance path.
+- [ ] `CUI-6` **Person-level eligibility enforced at every surface that
+      renders controlled data** — staff view, portal view, PDF export, email
+      attachment. Verified by making a user ineligible and trying all four.
+- [ ] `CUI-7` Markings survive render, export and email.
+- [ ] `CUI-8` **The DIBNet medium assurance certificate is already in hand**,
+      the filer is named, and the 72-hour path has been walked through once
+      on paper. Obtaining the certificate takes weeks; the deadline does not.
+- [ ] **FIPS-validated cryptography** where the DFARS 7012 clause applies —
+      it asks for validated modules, not merely strong algorithms, which
+      constrains your platform and libraries. Decide it with hosting
+      (`docs/DEPLOYMENT_TARGETS.md`), not after.
 - [ ] `DOC-1`/`DOC-2` If AS9100 is claimed: released revisions immutable,
       release blocked without approvals, supersessions retained.
 - [ ] `OPS-1` Backup scheduled **and one restore rehearsed**, with the date

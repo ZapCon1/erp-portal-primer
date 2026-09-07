@@ -297,6 +297,29 @@ Two rules that matter beyond quality:
   **Acceptance:** one test asserting the identity holds after every
   disposition path (use-as-is, rework, scrap, return-to-vendor), including
   a partial-quantity disposition — that is where it actually breaks.
+- **`QUAL-2` A first article is a document set, not a checkbox.** The
+  aerospace standard for it is **AS9102**, and it expects specific forms:
+  part/assembly identification, the raw material and special-process
+  certifications, and — the one that catches people — **every drawing
+  characteristic numbered ("ballooned") and individually reported with its
+  measured result**. So `FirstArticle` is not a boolean on a job; it is a
+  parent record with a row per characteristic. Model it that way from the
+  start, because rebuilding it later means re-ballooning drawings by hand.
+  A first article is also re-triggered by change: a new revision, a process
+  change, a lapse in production, or a new source.
+  **Acceptance:** create an FAI, add characteristics, and assert it cannot
+  be marked complete while any characteristic is unreported.
+- **`QUAL-3` Counterfeit parts have to be designed out.** AS9100 expects a
+  documented approach, and the software half is concrete: purchase from an
+  approved source list, **capture the certificate of conformance and mill
+  or test certs as files against the receipt** (not in a filing cabinet),
+  and keep the lot/heat number linked from receipt through to the shipped
+  part — which is the same chain `Lot & serial traceability` builds. If you
+  buy from a broker rather than the mill or a franchised distributor, the
+  standard expects extra verification; record which source type each
+  receipt came from so that question is answerable later.
+  **Acceptance:** assert a receipt cannot be closed without its cert file
+  attached when the material is flagged as traceable.
 - **Portal face is deliberately asymmetric.** Customers see the cert of
   conformance and their own first-article record. They do **not** see your
   internal NCRs — that's your scrap rate. This is the one place the parity
@@ -522,6 +545,25 @@ incident-response runbook, encrypted secrets). **Each carries its rule ID**;
   issuance of a presigned URL — which is a bearer credential the object
   store serves *without telling your app*. For flagged files, proxy through
   the app; that is the only compliant shape, not an alternative to one.
+- **`CUI-6` Access to controlled technical data is gated on the *person*, not
+  only their role.** This is the one most small shops miss, and it is
+  architectural. Under ITAR, releasing technical data to a **foreign person
+  is an export** — including an employee standing in your shop in Ohio. It
+  has a name, a **deemed export**, and it needs a license *before* the
+  release, not after. "US person" means a citizen, a lawful permanent
+  resident (green card), or a protected individual; a work visa is **not**
+  enough. So the system needs a per-user eligibility attribute, checked
+  wherever controlled data is *rendered*, alongside the existing tenant and
+  role checks. It applies to **three doors people forget**: a staff login
+  for a foreign-national machinist, a portal login for a customer's foreign
+  contact, and an offshore contractor with database or repository access.
+  Provision the field in the first migration — retrofitting it means
+  auditing every past view of every drawing, from logs you may not have kept.
+- **`CUI-7` Markings survive the system.** A document that arrives marked
+  (CUI, export-controlled, a distribution statement) must still carry that
+  marking when your app renders it, exports it, or emails it. A portal that
+  strips a marking has produced an unmarked copy of controlled data, and a
+  PDF export is the usual culprit. Pairs with `DOC-4`'s print stamp.
 - **`CUI-3` Audit records are protected and retained**, not merely written.
   The retention period is a decision, not a default. Write it down and
   assert it is set.
@@ -536,9 +578,16 @@ incident-response runbook, encrypted secrets). **Each carries its rule ID**;
 |---|---|
 | `CUI-1` | Flag a file, then attempt to send it to an integration whose `mayReceiveControlledData` is false; assert refusal **at the uploader**, and that nothing left the process. |
 | `CUI-2` | Read a flagged file two ways — through the app, and by issuing a presigned URL; assert an audit row exists for **both**, the second recording issuance. |
+| `CUI-6` | Mark a user ineligible, then request a controlled file **through every surface that renders it** — staff view, portal view, PDF export, email attachment. Assert refusal on each, plus an audit row for the attempt. A test that only covers the API misses the render path, which is where the release actually happens. |
+| `CUI-7` | Round-trip a marked document: ingest, render, export, email. Assert the marking text is present at every step. |
 | `CUI-3` | Assert the retention setting is present and non-default, and that an audit row cannot be updated or deleted through the app. |
 | `CUI-4` | Assert a privileged route refuses a session without a second factor. |
 | `CUI-5` | Delete a flagged file; assert the row is gone **and** the stored object is gone — not flagged, gone. |
+
+⚠️ **`CUI-1` gates *services*; `CUI-6` gates *people*.** Different controls,
+neither substituting for the other. A perfectly configured egress gate still
+lets an ineligible employee open the drawing on screen — and that is the
+export.
 
 ⚠️ **The hard edge of `CUI-1`.** It gates deliberate, app-initiated
 transfers of a classified file to a registered provider — Toolpath, hosted

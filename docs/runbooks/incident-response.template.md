@@ -15,6 +15,9 @@ timeline later, and memory is the first casualty.
 | Technical responder | <TODO> | <TODO> |
 | Client communication | <TODO> | <TODO> |
 
+> **If you hold DoD CUI, read Scenario 2's 72-hour clock now, not later.**
+> It has a prerequisite (a DIBNet certificate) that takes weeks to obtain.
+
 ## Scenario 1 — a secret leaked
 
 (Pasted into a chat/AI tool, committed, visible in a screenshot, or a
@@ -35,6 +38,33 @@ message or commit is not a fix.
 4. Decide notification: <TODO: your legal/contractual notification
    obligations per client contract and jurisdiction — decide NOW, not
    during the incident.>
+
+### ⏱ If you hold DoD CUI: the 72-hour clock (`CUI-8`)
+
+**Only if a DoD contract flowed the DFARS 7012 safeguarding clause down to
+you.** If it did, a cyber incident affecting covered defense information —
+or your ability to perform on the contract — must be reported to DoD
+**within 72 hours of discovery**, through **DIBNet**
+(`https://dibnet.dod.mil`). The clock starts at *discovery*, not at
+confirmation, and it runs while you are still working out what happened.
+
+Three things that make this survivable, and all three must be done
+**before** an incident:
+
+- [ ] **Get the DoD-approved medium assurance certificate now.** DIBNet
+      reporting requires one, and obtaining it takes days to weeks. A shop
+      that starts the certificate process during the 72 hours will miss
+      the deadline. <TODO: certificate obtained? date / holder>
+- [ ] **Name who files it** and their backup. <TODO: name>
+- [ ] **Preserve and protect the images.** The clause expects you to keep
+      affected media and related monitoring data for **90 days** so DoD can
+      request it. That conflicts with the instinct to wipe and rebuild —
+      snapshot first, rebuild second.
+
+⚠️ Reporting is **not** an admission of fault, and reporting late is far
+worse than reporting an incident that turns out to be minor. If in doubt,
+report. <TODO: confirm current requirements with your contracting officer —
+this is a summary written to make you act in time, not legal advice.>
 
 ## Scenario 3 — data loss / corruption
 
