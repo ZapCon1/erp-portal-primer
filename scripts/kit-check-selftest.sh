@@ -523,6 +523,19 @@ case_run 20 "the owner guide stops explaining the pull-request flow" \
   "through a pull request" \
   py_re docs/WHEN-IT-GOES-WRONG.md 'pull request' 'update'
 
+# --- the env contract must cover what the kit documents ----------------------
+case_run 18 "ALLOW_DEV_AUTH vanishes from .env.example (SEC-2 reads an undeclared var)" \
+  "the env contract never mentions" \
+  py_re .env.example 'ALLOW_DEV_AUTH' 'SOME_OTHER_FLAG'
+
+case_run 18 "a documented integration loses its env placeholder" \
+  "never names its variables" \
+  py_re .env.example 'TOOLPATH' 'REMOVED'
+
+case_run 18 "a real-looking credential is committed to .env.example" \
+  "shaped like a REAL credential" \
+  sh -c "printf 'STRIPE_LIVE=sk_live_abcdefghijklmnop\n' >> .env.example"
+
 # ------------------------------------------------------------------ coverage --
 echo
 echo "coverage: kit-check steps with no mutation case here"
