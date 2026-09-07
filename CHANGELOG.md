@@ -6,6 +6,41 @@ against future releases.
 
 ## 0.22.0 — 2026-09-06
 
+### `GIT-1` — the branch/PR flow is the rule, not the safer option
+
+The kit previously offered a feature branch and a pull request as "the safer
+flow" and allowed a confirmed direct push to `main`. On a solo repo that is
+exactly where "just this once" becomes the habit, and where nobody else is
+going to catch it. It is now the rule:
+
+> **branch → commit → push → PR → CI green → merge → deploy**
+
+`main` is only ever updated by merging a pull request whose CI is green.
+Never commit on `main`, never push to `main`, never merge a red PR.
+
+- `/perp-push` no longer offers a direct push. If you are on `main` it moves
+  the work to a branch (after checking the tree is clean — uncommitted work
+  is not its to discard, `STOP-3`), pushes, opens the PR, waits for CI, and
+  merges on green.
+- **Opening a PR needs no authorization; merging does.** The untracked
+  `.claude/push-standing.local` now authorizes *merge-when-green* rather
+  than a direct push. Without it, the skill stops at the open PR and hands
+  over the link.
+- `docs/WHEN-IT-GOES-WRONG.md` gains the owner-facing version, including the
+  warning sign: **if the assistant offers to push straight to `main`, say
+  "use a branch and a pull request"**.
+- Enforced structurally by `GH-2`, not by intention — with branch protection
+  on, the remote refuses a direct push, including from the repo owner. That
+  refusal is how this rule was written: a direct push in this session was
+  declined by the protection enabled an hour earlier.
+
+Why it holds when you are in a hurry, now written into `docs/GITHUB.md`: CI
+is the only thing that runs the full gate set, on Linux, where the adopter's
+failures actually happen — and a green local run has already been wrong in
+this repo's own history.
+
+
+
 **The ITAR/DoD rails.** A review pass over the primer with defense and
 aerospace work specifically in mind found that the kit's export-control
 model gated **services** (`mayReceiveControlledData`) and **files**

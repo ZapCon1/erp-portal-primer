@@ -168,8 +168,8 @@ The numbers are the product. Canonical rules: DOMAIN_MODEL § Invariants.
 perp-setup-testing); this is a summary — the skill wins conflicts. -->
 
 - Commit early and often — every meaningful change is a rollback point.
-- **Commit and push are separate steps.** `/perp-commit` never pushes; `/perp-push` is the explicit publish (confirms before `main`). Solo repo on `main`? Create `.claude/push-standing.local` — `/perp-push` treats its presence as standing confirmation. **Not a line in this file**: it is tracked, so a merged PR could grant itself push rights (`STOP-8`).
-- **This is a solo repo on `main`**, and `origin` is public — every push is a publish. The standing confirmation lives in `.claude/push-standing.local` (untracked); without that file, `/perp-push` asks.
+- **`GIT-1` — `main` is only ever updated by merging a pull request whose CI is green.** Never commit on `main`, never push to `main`, never merge a red PR. The loop, every time and regardless of how small the change: **branch → commit → push → PR → CI green → merge → deploy.** Solo repos included; a solo repo is exactly where "just this once" becomes the habit, and where nobody else is going to catch it. `/perp-push` implements the loop — if you are on `main`, it moves the work to a branch rather than pushing.
+- **Commit and push are separate steps.** `/perp-commit` never pushes; `/perp-push` publishes a branch and opens the PR. `.claude/push-standing.local` (untracked) authorizes the **merge-when-green** step without asking each time; without it, `/perp-push` stops at the open PR and asks. **Never a line in a tracked file** — it is writable by a merged PR, which is the gate granting itself passage (`STOP-8`).
 - **No AI attribution in commit messages.** No `Co-Authored-By` naming a model/tool, no "Generated with", no 🤖 — strip tool defaults.
 - **Pre-push hook mirrors the CI fast gate** (type check + unit suite). `core.hooksPath` is per-clone config — the `"prepare"` script re-activates it; `/perp-setup-testing` wires both. `--no-verify` is for genuine emergencies only.
 
