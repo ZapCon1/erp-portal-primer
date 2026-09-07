@@ -400,6 +400,23 @@ Plain-language regulated-data check, one question at a time:
   don't recognize the terms, one plain follow-up settles it: *"does any
   customer contract tell you how you're required to store or protect
   their files?"*
+- **If either answer was yes — is everyone who will use this system, staff
+  and customer contacts alike, a US citizen or green-card holder?** Ask it
+  plainly, because most owners have never been told it matters. Under ITAR,
+  letting a **foreign person** see controlled technical data is an export
+  even if they are standing in your shop — a *deemed export*, and it needs
+  a license first. A work visa is not enough. This changes the schema
+  (`CUI-6`), so it is a Day-1 question, not a go-live one. If the answer is
+  "not sure", that is a **yes, build the field** — it costs one column now
+  and an audit of every past drawing view later.
+- **If they said CUI/CMMC — is it CUI, or only FCI?** One plain follow-up:
+  *"does the contract say the information is Controlled Unclassified
+  Information, or just that it is not for public release?"* The difference
+  is large and worth naming: **FCI** is the lighter tier (a short list of
+  basic safeguards, self-assessed); **CUI** is the heavy one (the full
+  NIST SP 800-171 control set, and an assessment). Do not assume the heavy
+  one — over-building here costs a small shop months. If they cannot tell,
+  record the question for their contracting officer rather than guessing.
 - Any health data? (HIPAA)
 - Would you ever store card numbers yourselves rather than through a
   payment provider? (PCI — the answer should be no; say so.)
@@ -418,10 +435,10 @@ carry it into Phase 6's hosting question. Two things to get right:
   DEPLOYMENT_TARGETS.md often ends at a plain VPS or on-prem even for
   these shops. What you're recording is that the question exists and has
   a deadline (before go-live), not an answer.
-- **What *is* decided now is the cheap half**: the data classification
-  and the egress gate (`docs/MODULES.md` § Compliance posture) get
-  provisioned regardless, because they're near-free today and expensive
-  to retrofit. A yes here also means every later "should we send files to
+- **What *is* decided now is the cheap half**: the data classification,
+  the egress gate, and the **per-user eligibility field** (`CUI-6`)
+  (`docs/MODULES.md` § Compliance posture) get provisioned regardless,
+  because they're near-free today and expensive to retrofit. A yes here also means every later "should we send files to
   <third-party service>?" has a default answer of no —
   `mayReceiveControlledData`, which is what gates DFM analysis
   (Toolpath), hosted converters, error tracking, and email.

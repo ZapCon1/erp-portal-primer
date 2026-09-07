@@ -91,7 +91,9 @@ us) — per `docs/SCOPE.md` § The friction.
 <TODO: Regulated data — answer plainly; it changes file access, audit
 logging, and what may leave the system: defense/aerospace/export-restricted
 drawings (ITAR/EAR — defense-adjacent subcontractors often qualify without
-realizing)? Health data (HIPAA)? Card numbers stored by you (PCI — don't;
+realizing; and if yes, note that showing controlled data to a **foreign
+person is an export even inside the US** — `CUI-6` makes that a schema
+field, not a policy)? Health data (HIPAA)? Card numbers stored by you (PCI — don't;
 secure_coding.md § 8)? Any yes → the flag gates portal file visibility and
 exports, and access is audit-logged (§ 17). If unanswered, Claude assumes
 NO regulated data — state that assumption rather than leaving this blank.>
@@ -129,7 +131,7 @@ was retired. That file also says plainly which rules nothing enforces yet.
 - **Every feature names the friction it removes** — internal or external, per SCOPE.md § The friction. Can't name it? Scope creep.
 - Every non-trivial feature gets a `features/<name>.md` doc via **`/perp-feature <name>`** (scaffolds + registers in the index) — the moment you commit to building, before code.
 - Check existing `features/*.md` for overlap first; extend rather than duplicate.
-- **Bigger than a feature? It's a module** — `docs/MODULES.md` has the boundary map, the dependency graph, and the 10-point module contract every capability module answers before code. Modules are **inert by default**: catalogued ≠ planned. Nothing on that list is a dimension — the portal and the compliance posture cut across all of them.
+- **Bigger than a feature? It's a module** — `docs/MODULES.md` has the boundary map, the dependency graph, and the module contract every capability module answers before code. Modules are **inert by default**: catalogued ≠ planned. Nothing on that list is a dimension — the portal and the compliance posture cut across all of them.
 - Each phase = one commit referenced by hash in the Progress table.
 
 ### Code Structure
@@ -217,6 +219,8 @@ not for you — point at it rather than explaining git.
 
 ### Verification Habits
 - After significant changes: type-check + unit tests, unasked. After installs: audit. After production-path changes: build. Full suite: `/perp-check`.
+- **`scripts/graduation.sh` arms dormant rules as the app grows** — a `File` model turns on the export-control rules, an `Invoice` turns on the concurrency tests. An armed rule that fails is a gate, not a suggestion.
+- **A green check blocks nothing until GitHub is told to enforce it** (`docs/GITHUB.md`, `GH-1`): required status checks, and a deploy gated by `needs:` plus an environment reviewer.
 - **Unfilled `<TODO>` command? Don't guess.** Say verification is unconfigured, propose the fill from the repo, update the doc — never report a placeholder as passed.
 
 ## Parity — the internal app and the customer portal must agree
@@ -286,7 +290,7 @@ block, because that block gets deleted.
 <!-- Fill as they settle; defaults from the reference implementation.
 Full model: docs/DOMAIN_MODEL.md. -->
 
-- **Tenant = Client** (`TENANT-1`). Every portal query filters by `clientId`. **Turn on a mechanism that fails closed** — Postgres row-level security, or a Prisma client extension requiring a tenant argument on scoped models. The auth wrapper, the isolation tests and `/perp-review-parity` are the layers *on top of* it, not a substitute (`docs/CONTROLS.md`).
+- **Tenant = Client** (`TENANT-1`). Every portal query filters by `clientId`. **A mechanism that fails closed** — `/perp-build-core` emits a Prisma client extension requiring a tenant argument on scoped models; RLS is the alternative (and carries a pooled-connection footgun, `docs/STACK.md`). The auth wrapper, the isolation tests and `/perp-review-parity` are the layers *on top of* it, not a substitute (`docs/CONTROLS.md`).
 - **Client codes**: short identifiers (e.g. 3 letters). **Project codes**: `{ClientCode}{YY}{##}` (e.g. `ABC2601`). <TODO: confirm or change.>
 - **Project structure**: Project → Phases → Tasks → Time Entries/Expenses. <TODO: phase `type` rule (e.g. off-site vs on-site), if used.>
 - **Presale → active**: estimate acceptance is the pivotal event that fans out (budget, first invoice, …) atomically.

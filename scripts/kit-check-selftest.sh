@@ -477,6 +477,31 @@ case_run 18 "a deploy target block is dropped" \
   "lost the ECS target block" \
   py_re .github/workflows/deploy.yml.template 'ECS' 'XYZ'
 
+# --- ITAR / DoD / AS9100 rails -----------------------------------------------
+case_run 17 "the deemed-export rule vanishes (CUI-1 would gate services only)" \
+  "deemed-export rule" \
+  py_re docs/MODULES.md 'deemed export' 'normal transfer'
+
+case_run 17 "/perp-build-core stops provisioning per-user export eligibility" \
+  "per-user export-eligibility field" \
+  py_re .claude/skills/perp-build-core/SKILL.md 'exportEligible' 'somethingElse'
+
+case_run 17 "/perp-scope stops asking the foreign-person question" \
+  "foreign-person question" \
+  py_re .claude/skills/perp-scope/SKILL.md '(deemed export|foreign person)' 'ordinary access'
+
+case_run 17 "the incident runbook loses the 72-hour DoD clock" \
+  "72-hour DoD reporting clock" \
+  py_re docs/runbooks/incident-response.template.md '72[ -]hours?' 'a while'
+
+case_run 17 "AS9102 disappears (FirstArticle becomes a checkbox)" \
+  "lost AS9102" \
+  py_re docs/MODULES.md 'AS9102' 'the FAI standard'
+
+case_run 17 "/perp-scope stops separating FCI from CUI" \
+  "separates FCI from CUI" \
+  py_re .claude/skills/perp-scope/SKILL.md 'FCI' 'controlled info'
+
 # ------------------------------------------------------------------ coverage --
 echo
 echo "coverage: kit-check steps with no mutation case here"

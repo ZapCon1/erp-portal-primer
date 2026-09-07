@@ -66,7 +66,11 @@ changelog=$(grep -oE '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -1 | cut -
 [ "$readme" = "$changelog" ] || err "version stamps disagree: README=$readme CHANGELOG=$changelog"
 
 echo "4. no count restatements (counts drift; reference the source count-free)"
-grep -rniE '\b(one|two|three|four|five|six|seven|eight|nine|ten|[0-9]+) (steps|checks|phases|perspectives|invariants|gates)\b' \
+# Known blind spot: a HYPHENATED SINGULAR count ("10-point contract") slips
+# through, and did - CLAUDE.md carried a stale "10-point" after the contract grew
+# to eleven. Matching singulars catches it but also flags ordinary prose ("one
+# phase, one commit"), and a check that cries wolf gets deleted. Plural only.
+grep -rniE '\b(one|two|three|four|five|six|seven|eight|nine|ten|[0-9]+) (steps|checks|phases|perspectives|invariants|gates|points)\b' \
   --include='*.md' --exclude-dir=reviews . | grep -vE "$HIST_EXCLUDE" && err "a count is restated in prose — drop the number or derive it"
 
 echo "5. no unfilled TODO in a doc the checklist calls done"
@@ -373,11 +377,24 @@ for id in DOC-1 DOC-2 DOC-3 CUI-1 CUI-2 QUAL-1; do
   grep -q "$id" docs/CONTROLS.md || err "CONTROLS.md lost compliance rule $id"
 done
 grep -qi 'Compliance controls' docs/CONTROLS.md || err "CONTROLS.md lost its compliance section"
+# The ITAR trap a small shop is most likely to miss: CUI-1 gates SERVICES,
+# CUI-6 gates PEOPLE, and showing controlled technical data to a foreign
+# person is a separate export that roles and tenancy do not cover.
+grep -qi 'deemed export' docs/MODULES.md   || err "MODULES.md lost the deemed-export rule (CUI-6) - the kit would gate services and integrations while leaving the person-level export unmentioned"
+grep -qi 'exportEligible' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core no longer provisions the per-user export-eligibility field (CUI-6)"
+grep -qi 'deemed export\|foreign person' .claude/skills/perp-scope/SKILL.md   || err "/perp-scope no longer asks the foreign-person question (CUI-6) - it is schema-shaped, so it is a Day-1 question"
+grep -qi 'exportEligible' scripts/graduation.sh   || err "graduation.sh no longer arms CUI-6 when a File model appears"
+grep -qi '72 hours\|72-hour' docs/runbooks/incident-response.template.md   || err "the incident runbook lost the 72-hour DoD reporting clock (CUI-8) - it has a prerequisite that takes weeks to obtain"
+grep -qi 'DIBNet' docs/runbooks/incident-response.template.md   || err "the incident runbook lost the DIBNet reporting path (CUI-8)"
+grep -qi 'FIPS' docs/CONTROLS.md   || err "CONTROLS.md lost the FIPS-validated-cryptography go-live gate"
+grep -qi 'AS9102' docs/MODULES.md   || err "MODULES.md lost AS9102 (QUAL-2) - FirstArticle would be built as a checkbox instead of characteristic-level reporting"
+grep -qi 'counterfeit' docs/MODULES.md   || err "MODULES.md lost counterfeit-parts prevention (QUAL-3)"
+grep -qiE 'FCI' .claude/skills/perp-scope/SKILL.md   || err "/perp-scope no longer separates FCI from CUI - the two tiers differ enormously in burden and assuming the heavy one costs a small shop months"
 # A compliance rule must be stated where it gets BUILT, not only where it is
 # mapped. All of DOC-1..5, CUI-2..5 and QUAL-1 once lived in exactly one file
 # (this one), so MODULES.md described doc control while citing no DOC-* rule
 # and silently omitting DOC-1 - the immutability rule the module exists for.
-for id in DOC-1 DOC-2 DOC-3 DOC-4 DOC-5 CUI-1 CUI-2 CUI-3 CUI-4 CUI-5 QUAL-1; do
+for id in DOC-1 DOC-2 DOC-3 DOC-4 DOC-5 CUI-1 CUI-2 CUI-3 CUI-4 CUI-5 CUI-6 CUI-7 QUAL-1 QUAL-2 QUAL-3; do
   grep -q "$id" docs/MODULES.md     || err "compliance rule $id is mapped in CONTROLS.md but absent from MODULES.md, the module that must build it"
 done
 grep -qi 'Acceptance - how you prove each one\|Acceptance — how you prove each one' docs/MODULES.md   || err "MODULES.md lost the compliance acceptance tests - a rule you cannot demonstrate is a rule you do not have"
