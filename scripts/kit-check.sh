@@ -509,6 +509,23 @@ grep -qE '^permissions:' .github/workflows/kit-check.yml || err "kit-check workf
 grep -q 'kit-check-selftest' .github/workflows/kit-check.yml || err "CI no longer proves the checks can fail"
 
 
+echo "18b. the env contract covers what the kit documents"
+# Found by the owner: /perp-build-core was told to add ALLOW_DEV_AUTH to
+# .env.example and .env.example never got it, so SEC-2's fail-closed guard
+# read a variable the env contract did not declare. Same class as a module
+# contract with no owner - a claim in one file with no carrier in another.
+grep -q 'ALLOW_DEV_AUTH' .env.example   || err ".env.example does not declare ALLOW_DEV_AUTH - SEC-2's fail-closed guard reads a variable the env contract never mentions"
+grep -q 'ALLOW_DEV_AUTH' .claude/skills/perp-build-core/SKILL.md   || err "/perp-build-core no longer emits ALLOW_DEV_AUTH, but .env.example declares it"
+# Every integration the kit documents needs a placeholder, or the adopter
+# discovers the variable's name by reading source at the worst moment.
+for pair in "TOOLPATH:Toolpath" "SENTRY:error tracking (OPS-3)"             "FILE_STORAGE:cloud file storage" "GOOGLE:Google Workspace"             "MICROSOFT:Microsoft 365" "ACCOUNTING:accounting sync"; do
+  var=${pair%%:*}; label=${pair#*:}
+  grep -q "$var" .env.example     || err ".env.example has no placeholder for $label - the kit documents the module but never names its variables"
+done
+# Placeholders only. A real-looking secret in a committed example is how one
+# gets copied into a live .env and then trusted.
+grep -qE '^[A-Z_]+=(sk_|pk_|ghp_|AKIA|xox)' .env.example   && err ".env.example contains something shaped like a REAL credential - placeholders only"
+
 echo "19. idiom-churn guardrails (PIN-*) and the stack review stamp"
 for id in PIN-1 PIN-2 PIN-3 PIN-4 PIN-5; do
   grep -q "$id" docs/CONTROLS.md || err "CONTROLS.md lost idiom-churn rule $id"

@@ -4,6 +4,48 @@ All notable changes to the primer. Adopters: record the version you
 adopted in your repo (see README § How to adopt) so you can diff
 against future releases.
 
+## 0.22.2 — 2026-09-07
+
+**The env contract had fallen behind the kit.** Caught by the owner asking
+whether `.env.example` was ever updated for the integrations added over the last
+two releases. It was not, and one of the gaps was a direct contradiction
+shipped the same day.
+
+- **`ALLOW_DEV_AUTH` was missing.** `/perp-build-core` is instructed to add
+  it to `.env.example`, and `.env.example` never declared it — so `SEC-2`'s fail-closed
+  guard, the highest-consequence rule in the kit, read a variable the env
+  contract did not mention. An adopter following the docs would hit a
+  refused boot with no documented variable to set.
+- **Five documented integrations had no placeholder at all**: Toolpath,
+  error tracking, cloud file storage, Google/Microsoft, accounting sync. The
+  worst was error tracking, because `graduation.sh` now *requires* it once
+  something deployable exists — the kit would have failed a build over a
+  variable it never named.
+
+Optional integrations are **commented out** on purpose. A fail-loud startup
+check that demands twenty variables nobody uses is how an owner learns to
+ignore it. The block carries a `CUI-1` header: every one of these is an
+egress path, and holding a key does not mean controlled files may be sent
+to it.
+
+**The systemic half.** This is the same failure class as a module contract
+with no owner — a claim in one file with no carrier in another — so it gets
+a sensor rather than a correction. New check 18b asserts the env contract
+covers what the kit documents, in both directions: `/perp-build-core`
+promises `ALLOW_DEV_AUTH` *and* `.env.example` declares it, and every documented
+integration has a placeholder. Plus a tripwire for anything shaped like a
+real credential (`sk_`, `AKIA`, `ghp_`), because a realistic-looking example
+is how one gets copied into a live `.env` and then trusted.
+
+Verified before shipping that grepping `.env.example` does not trip the
+`sensitive-canary` plugin this kit recommends — had it tripped, the new
+check would have made kit-check unrunnable for exactly the adopters
+following the kit's own security advice.
+
+Selftest: 80 proven, 0 unproven.
+
+---
+
 ## 0.22.1 — 2026-09-07
 
 **The context budget's prune order, used in anger.** `CLAUDE.md` reached
