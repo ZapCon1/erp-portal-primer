@@ -4,6 +4,37 @@ All notable changes to the primer. Adopters: record the version you
 adopted in your repo (see README § How to adopt) so you can diff
 against future releases.
 
+## 0.22.1 — 2026-09-07
+
+**The context budget's prune order, used in anger.** `CLAUDE.md` reached
+26,925 of its 27,000-byte cap, so the order written in `docs/CONTROLS.md`
+§ The context budget got its first real application.
+
+- **Moved, not deleted**: the `sensitive-canary` block (~520 bytes of
+  third-party plugin setup, false-positive caveats and coverage boundaries)
+  left the always-loaded file for `secure_coding.md` § 8, which it already
+  named as its own fallback. `CLAUDE.md` keeps the rule — secret scanning in
+  the AI loop is optional and bounded — and drops the instructions. Prune
+  order category 4: keep the rule, move the "why" to the doc that owns it.
+- **Compressed, not cut**: § Money & Hours now cites invariants rather than
+  re-deriving them. Every rule survives, including `MONEY-1` verbatim — the
+  prune order names money rules, tenancy and the `STOP-*` set as never
+  cuttable to save bytes.
+
+**The measurement worth keeping.** A duplication pass across every doc found
+only ~156 bytes of `CLAUDE.md` restated elsewhere. The file is *dense, not
+bloated*, which is the useful finding: there is no easy 3KB in it, and the
+next release cannot assume one. `26,027 / 27,000` — 973 bytes free.
+
+The structural option, not taken here because it changes onboarding
+behaviour and that is the owner's call: the Bootstrap block is ~5.2KB (20%
+of the file) and is adopter-facing rather than model-facing. Keeping its
+checklist in `CLAUDE.md` and moving the per-item explanations to a
+`docs/` page would free most of that while preserving the "suggest the next
+unchecked item" behaviour the SessionStart hook depends on.
+
+---
+
 ## 0.22.0 — 2026-09-06
 
 ### `GIT-1` — the branch/PR flow is the rule, not the safer option
